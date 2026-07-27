@@ -6,7 +6,52 @@
 
 ## Purpose
 
-The backend service coordinates application lifecycle events, modular domain settings, standardized API response envelopes, centralized exception handling, HTTP middleware, observability (logging, tracing, metrics, events), dependency injection, application service containers, and routing for the **Desearch AI** research workbench.
+The backend service coordinates application lifecycle events, modular domain settings, standardized API response envelopes, centralized exception handling, HTTP middleware, observability (logging, tracing, metrics, events), dependency injection, research session management, and routing for the **Desearch AI** research workbench.
+
+---
+
+## Research Session Module
+
+The Research Session domain (`app/sessions/`) manages the complete lifecycle of research queries across 9 states using an in-memory repository pattern, domain service layer, Pydantic schemas, and FastAPI endpoints.
+
+```text
+backend/app/sessions/
+├── __init__.py            # Package exports
+├── enums.py               # SessionStatus enum (DRAFT, PLANNING, WAITING_APPROVAL, etc.)
+├── models.py              # ResearchSession domain dataclass entity
+├── repository.py          # SessionRepository (In-memory storage)
+├── router.py              # API router (/api/v1/sessions)
+├── schemas.py             # Pydantic v2 schemas (CreateSessionRequest, SessionResponse, etc.)
+└── service.py             # SessionService business logic & state transition validation
+```
+
+### Research Session Lifecycle State Machine
+
+```text
+[DRAFT] --> [PLANNING] --> [WAITING_APPROVAL] --> [RESEARCHING] --> [REVIEWING] --> [COMPLETED]
+   │             │                 │                  │               │                │
+   └──(cancel)───┴────(cancel)─────┴─────(cancel)─────┴────(cancel)───┴────(cancel)────┼──> [ARCHIVED]
+                 │                                    │               │                │
+                 └──────(fail)────────────────────────┴────(fail)─────┴────(fail)──────┘
+```
+
+#### Valid Transitions Matrix
+- **`DRAFT`**: → `PLANNING`, `CANCELLED`
+- **`PLANNING`**: → `WAITING_APPROVAL`, `FAILED`, `CANCELLED`
+- **`WAITING_APPROVAL`**: → `RESEARCHING`, `CANCELLED`
+- **`RESEARCHING`**: → `REVIEWING`, `FAILED`, `CANCELLED`
+- **`REVIEWING`**: → `COMPLETED`, `RESEARCHING`, `FAILED`, `CANCELLED`
+- **`COMPLETED`**: → `ARCHIVED`
+- **`FAILED`**: → `ARCHIVED`
+- **`CANCELLED`**: → `ARCHIVED`
+- **`ARCHIVED`**: Terminal state (no further transitions allowed)
+
+### API Endpoints (`/api/v1/sessions`)
+
+- **`POST /api/v1/sessions`**: Create a new research session in `DRAFT` state.
+- **`GET /api/v1/sessions`**: List all research sessions.
+- **`GET /api/v1/sessions/{session_id}`**: Retrieve session details by ID.
+- **`PATCH /api/v1/sessions/{session_id}`**: Update session title, metadata, or transition lifecycle status.
 
 ---
 
@@ -18,14 +63,6 @@ Desearch AI implements a lightweight service container (`app/core/container.py`)
 backend/app/core/
 ├── container.py           # Container class centralizing Settings, Logger, Tracer, & Metrics
 ```
-
-The application container holds references only to core infrastructure primitives:
-- `settings`: Centralized configuration instance (`Settings`).
-- `logger`: Root application logger (`AppLogger`).
-- `tracer`: In-memory tracing engine (`Tracer`).
-- `metrics`: In-memory metrics collector (`MetricsCollector`).
-
-*Note: The application container does NOT create Supabase, Redis, LLM clients, or Agent instances.*
 
 ---
 
@@ -41,17 +78,6 @@ backend/app/dependencies/
 └── services.py            # Business service providers container placeholder
 ```
 
-### Reusable Dependency Providers
-
-- `get_container()`: Provides the shared application `Container`.
-- `get_settings_dep()`: Provides `Settings`.
-- `get_logger_dep(name)`: Provides a named `AppLogger`.
-- `get_tracer_dep()`: Provides `Tracer`.
-- `get_metrics_dep()`: Provides `MetricsCollector`.
-- `get_request_id_dep(request)`: Resolves current correlated request ID.
-- `get_trace_id_dep(request)`: Resolves current correlated trace ID.
-- `get_execution_time_dep(request)`: Resolves request execution duration in milliseconds.
-
 ---
 
 ## OpenAPI & API Tags Customization
@@ -62,16 +88,6 @@ OpenAPI schema generation (`app/core/openapi.py`) is customized with project met
 Interactive OpenAPI Documentation: http://127.0.0.1:8000/docs
 ReDoc Schema Documentation:        http://127.0.0.1:8000/redoc
 ```
-
-### Standard API Tags
-
-- **`Health`**: Health check and diagnostic endpoints for operational monitoring.
-- **`System`**: System status, environment parameters, and platform health.
-- **`Research`**: Research query submission, execution plan, and report generation endpoints.
-- **`Sessions`**: Research session lifecycle, context inspection, and trace logging.
-- **`Agents`**: Multi-agent pipeline inspection, status, and role configurations.
-- **`Tools`**: Tool registry, tool execution, and source gathering integrations.
-- **`Administration`**: Platform management, quota monitoring, and system metrics.
 
 ---
 
@@ -108,13 +124,6 @@ python -m venv venv
 venv\Scripts\activate
 ```
 
-#### Linux / macOS (Bash / Zsh)
-```bash
-cd backend
-python3 -m venv venv
-source venv/bin/activate
-```
-
 ### 2. Install Dependencies
 
 ```bash
@@ -126,34 +135,4 @@ pip install -r requirements.txt
 
 ```bash
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
-
----
-
-## Service Endpoints & Verification
-
-- **Base Service URL**: `http://127.0.0.1:8000`
-- **Health Check Endpoint**: `http://127.0.0.1:8000/api/v1/health`
-- **Interactive OpenAPI Docs**: `http://127.0.0.1:8000/docs`
-
-### Expected Health Check JSON Response
-
-```json
-{
-  "success": true,
-  "message": "Health check successful.",
-  "timestamp": "2026-07-27T17:10:41.123456Z",
-  "request_id": "c3f8e52a-91d4-47b2-b430-6712948e23f1",
-  "data": {
-    "status": "healthy",
-    "service": "desearch-ai-backend",
-    "version": "0.1.0"
-  },
-  "metadata": {
-    "execution_time_ms": 0.45,
-    "api_version": "0.1.0",
-    "environment": "development",
-    "pagination": null
-  }
-}
 ```
