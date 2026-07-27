@@ -160,5 +160,6 @@ $RECYCLE.BIN/
 tmp/
 temp/
 scratch/
+docs/reports/
 *.tmp
 *.bak
