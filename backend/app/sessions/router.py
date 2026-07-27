@@ -5,14 +5,15 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 
 from app.core.config import settings
+from app.core.repositories.session import AbstractSessionRepository
 from app.dependencies import (
     get_execution_time_dep,
     get_request_id_dep,
+    get_session_repository_dep,
 )
 from app.schemas.base import BaseResponse
 from app.schemas.metadata import ResponseMetadata
 from app.sessions.models import ResearchSession
-from app.sessions.repository import session_repository
 from app.sessions.schemas import (
     CreateSessionRequest,
     SessionListResponse,
@@ -24,9 +25,13 @@ from app.sessions.service import SessionService
 router = APIRouter(tags=["Sessions"])
 
 
-def get_session_service() -> SessionService:
-    """Dependency provider for SessionService."""
-    return SessionService(repository=session_repository)
+def get_session_service(
+    repo: Annotated[
+        AbstractSessionRepository, Depends(get_session_repository_dep)
+    ],
+) -> SessionService:
+    """Dependency provider for SessionService injecting the abstract repository interface."""
+    return SessionService(repository=repo)
 
 
 def _to_session_response(session: ResearchSession) -> SessionResponse:

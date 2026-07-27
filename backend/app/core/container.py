@@ -1,9 +1,12 @@
 """Application service container centralizing shared singleton infrastructure objects."""
 
 from app.core.config import Settings, settings
+from app.core.repositories.session import AbstractSessionRepository
 from app.observability.logger import AppLogger, get_app_logger
 from app.observability.metrics import MetricsCollector, metrics
 from app.observability.tracing import Tracer, tracer
+from app.sessions.repository import InMemorySessionRepository
+from app.sessions.supabase_repository import SupabaseSessionRepository
 
 
 class Container:
@@ -14,6 +17,22 @@ class Container:
         self.logger: AppLogger = get_app_logger("container")
         self.tracer: Tracer = tracer
         self.metrics: MetricsCollector = metrics
+
+        # Inject Supabase repository if credentials configured, else fallback to InMemory
+        if settings.SUPABASE_URL and (
+            settings.SUPABASE_SERVICE_ROLE_KEY or settings.SUPABASE_ANON_KEY
+        ):
+            self.session_repository: AbstractSessionRepository = (
+                SupabaseSessionRepository()
+            )
+            self.logger.info(
+                "Initialized SupabaseSessionRepository as active session repository"
+            )
+        else:
+            self.session_repository = InMemorySessionRepository()
+            self.logger.info(
+                "Initialized InMemorySessionRepository as fallback session repository"
+            )
 
     def get_logger(self, name: str) -> AppLogger:
         """Factory method for creating named AppLogger instances."""

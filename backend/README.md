@@ -6,52 +6,80 @@
 
 ## Purpose
 
-The backend service coordinates application lifecycle events, modular domain settings, standardized API response envelopes, centralized exception handling, HTTP middleware, observability (logging, tracing, metrics, events), dependency injection, research session management, and routing for the **Desearch AI** research workbench.
+The backend service coordinates application lifecycle events, modular domain settings, standardized API response envelopes, centralized exception handling, HTTP middleware, observability (logging, tracing, metrics, events), dependency injection, abstract repository persistence layers, Supabase PostgreSQL database integration, research session management, and routing for the **Desearch AI** research workbench.
+
+---
+
+## Supabase Persistence
+
+Desearch AI integrates **Supabase PostgreSQL** as its production persistence layer (`app/sessions/supabase_repository.py`). The domain service layer remains 100% untouched due to the repository abstraction pattern established in Ticket P2-02.
+
+```text
+backend/app/
+├── core/
+│   └── database.py                  # Singleton Supabase client getter (get_supabase_client)
+└── sessions/
+    ├── repository.py                # InMemorySessionRepository (Fallback)
+    └── supabase_repository.py       # SupabaseSessionRepository (Production Supabase PostgreSQL)
+```
+
+### Database Schema (`public.research_sessions`)
+
+```sql
+CREATE TABLE IF NOT EXISTS public.research_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    query TEXT NOT NULL,
+    status TEXT NOT NULL,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Production Indexes
+CREATE INDEX IF NOT EXISTS idx_research_sessions_status ON public.research_sessions (status);
+CREATE INDEX IF NOT EXISTS idx_research_sessions_created_at ON public.research_sessions (created_at DESC);
+```
+
+### Row Level Security (RLS)
+
+Row Level Security is enabled on `public.research_sessions` with a strict authenticated access policy:
+
+```sql
+ALTER TABLE public.research_sessions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow authenticated access to research_sessions"
+ON public.research_sessions
+FOR ALL
+TO authenticated, service_role
+USING (true)
+WITH CHECK (true);
+```
+
+---
+
+## Repository Architecture
+
+Desearch AI strictly separates domain business logic from data storage mechanisms using abstract repository interfaces (`app/core/repositories/`). This adheres to SOLID principles (Dependency Inversion), allowing seamless swapping of persistence providers (e.g. from in-memory dictionary storage to Supabase PostgreSQL) without altering service layer code.
+
+```text
+       FastAPI Router Endpoint (POST /api/v1/sessions)
+                            │
+                            ▼
+              SessionService (app/sessions/service.py)
+                            │  (Depends ONLY on AbstractSessionRepository)
+                            ▼
+           AbstractSessionRepository (Interface)
+                            ▲
+                            │  (Implements interface)
+         SupabaseSessionRepository (app/sessions/supabase_repository.py)
+```
 
 ---
 
 ## Research Session Module
 
-The Research Session domain (`app/sessions/`) manages the complete lifecycle of research queries across 9 states using an in-memory repository pattern, domain service layer, Pydantic schemas, and FastAPI endpoints.
-
-```text
-backend/app/sessions/
-├── __init__.py            # Package exports
-├── enums.py               # SessionStatus enum (DRAFT, PLANNING, WAITING_APPROVAL, etc.)
-├── models.py              # ResearchSession domain dataclass entity
-├── repository.py          # SessionRepository (In-memory storage)
-├── router.py              # API router (/api/v1/sessions)
-├── schemas.py             # Pydantic v2 schemas (CreateSessionRequest, SessionResponse, etc.)
-└── service.py             # SessionService business logic & state transition validation
-```
-
-### Research Session Lifecycle State Machine
-
-```text
-[DRAFT] --> [PLANNING] --> [WAITING_APPROVAL] --> [RESEARCHING] --> [REVIEWING] --> [COMPLETED]
-   │             │                 │                  │               │                │
-   └──(cancel)───┴────(cancel)─────┴─────(cancel)─────┴────(cancel)───┴────(cancel)────┼──> [ARCHIVED]
-                 │                                    │               │                │
-                 └──────(fail)────────────────────────┴────(fail)─────┴────(fail)──────┘
-```
-
-#### Valid Transitions Matrix
-- **`DRAFT`**: → `PLANNING`, `CANCELLED`
-- **`PLANNING`**: → `WAITING_APPROVAL`, `FAILED`, `CANCELLED`
-- **`WAITING_APPROVAL`**: → `RESEARCHING`, `CANCELLED`
-- **`RESEARCHING`**: → `REVIEWING`, `FAILED`, `CANCELLED`
-- **`REVIEWING`**: → `COMPLETED`, `RESEARCHING`, `FAILED`, `CANCELLED`
-- **`COMPLETED`**: → `ARCHIVED`
-- **`FAILED`**: → `ARCHIVED`
-- **`CANCELLED`**: → `ARCHIVED`
-- **`ARCHIVED`**: Terminal state (no further transitions allowed)
-
-### API Endpoints (`/api/v1/sessions`)
-
-- **`POST /api/v1/sessions`**: Create a new research session in `DRAFT` state.
-- **`GET /api/v1/sessions`**: List all research sessions.
-- **`GET /api/v1/sessions/{session_id}`**: Retrieve session details by ID.
-- **`PATCH /api/v1/sessions/{session_id}`**: Update session title, metadata, or transition lifecycle status.
+The Research Session domain (`app/sessions/`) manages the complete lifecycle of research queries across 9 states using an in-memory repository pattern or Supabase PostgreSQL persistence, domain service layer, Pydantic schemas, and FastAPI endpoints.
 
 ---
 
@@ -59,35 +87,17 @@ backend/app/sessions/
 
 Desearch AI implements a lightweight service container (`app/core/container.py`) to centralize shared infrastructure singletons without global mutable state or heavy third-party DI frameworks.
 
-```text
-backend/app/core/
-├── container.py           # Container class centralizing Settings, Logger, Tracer, & Metrics
-```
-
 ---
 
 ## Dependency Injection Architecture
 
 Dependency Injection in Desearch AI uses FastAPI's native `Depends()` mechanism (`app/dependencies/`). Reusable dependency providers decouple API handlers from infrastructure implementations and enable seamless unit test mocking.
 
-```text
-backend/app/dependencies/
-├── __init__.py            # Package exports
-├── common.py              # Request-scoped providers (request_id, trace_id, execution_time)
-├── providers.py           # Core infrastructure providers (container, settings, logger, tracer, metrics)
-└── services.py            # Business service providers container placeholder
-```
-
 ---
 
 ## OpenAPI & API Tags Customization
 
 OpenAPI schema generation (`app/core/openapi.py`) is customized with project metadata, contact info, license specification, and structured API tags.
-
-```text
-Interactive OpenAPI Documentation: http://127.0.0.1:8000/docs
-ReDoc Schema Documentation:        http://127.0.0.1:8000/redoc
-```
 
 ---
 

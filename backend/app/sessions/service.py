@@ -3,9 +3,9 @@
 from datetime import UTC, datetime
 
 from app.core.exceptions import ResourceNotFoundException, ValidationException
+from app.core.repositories.session import AbstractSessionRepository
 from app.sessions.enums import SessionStatus
 from app.sessions.models import ResearchSession
-from app.sessions.repository import SessionRepository
 from app.sessions.schemas import CreateSessionRequest, UpdateSessionRequest
 
 # State Machine Transition Rules Matrix
@@ -41,7 +41,7 @@ ALLOWED_TRANSITIONS: dict[SessionStatus, set[SessionStatus]] = {
 class SessionService:
     """Service encapsulating research session business logic and validation rules."""
 
-    def __init__(self, repository: SessionRepository) -> None:
+    def __init__(self, repository: AbstractSessionRepository) -> None:
         self.repository = repository
 
     def create_session(self, data: CreateSessionRequest) -> ResearchSession:

@@ -2,6 +2,7 @@
 
 from app.core.config import Settings, settings
 from app.core.container import Container, container
+from app.core.repositories.session import AbstractSessionRepository
 from app.observability.logger import AppLogger, get_app_logger
 from app.observability.metrics import MetricsCollector, metrics
 from app.observability.tracing import Tracer, tracer
@@ -30,3 +31,8 @@ def get_tracer_dep() -> Tracer:
 def get_metrics_dep() -> MetricsCollector:
     """Dependency provider returning the metrics collector."""
     return metrics
+
+
+def get_session_repository_dep() -> AbstractSessionRepository:
+    """Dependency provider returning the active session repository interface implementation."""
+    return container.session_repository
