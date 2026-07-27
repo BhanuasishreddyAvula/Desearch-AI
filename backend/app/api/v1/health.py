@@ -1,31 +1,45 @@
 """Health check endpoint handler for API v1."""
 
-from fastapi import APIRouter
-from pydantic import BaseModel, Field
+from typing import Annotated
+
+from fastapi import APIRouter, Depends
+
+from app.core.config import Settings
+from app.dependencies import (
+    get_execution_time_dep,
+    get_request_id_dep,
+    get_settings_dep,
+)
+from app.schemas.health import HealthData, HealthResponse
+from app.schemas.metadata import ResponseMetadata
 
 router = APIRouter(tags=["Health"])
 
 
-class HealthCheckResponse(BaseModel):
-    """Response model for health check endpoint."""
-
-    status: str = Field(default="healthy", description="Current health status")
-    service: str = Field(
-        default="desearch-ai-backend", description="Service identifier"
-    )
-    version: str = Field(default="0.1.0", description="Application version")
-
-
 @router.get(
     "/health",
-    response_model=HealthCheckResponse,
+    response_model=HealthResponse,
     summary="Health Check",
-    description="Returns service health status, service identifier, and version.",
+    description="Returns service health status wrapped in standardized BaseResponse envelope.",
 )
-async def health_check() -> HealthCheckResponse:
-    """Health check endpoint to verify backend service availability."""
-    return HealthCheckResponse(
-        status="healthy",
-        service="desearch-ai-backend",
-        version="0.1.0",
+async def health_check(
+    settings: Annotated[Settings, Depends(get_settings_dep)],
+    request_id: Annotated[str | None, Depends(get_request_id_dep)],
+    execution_time_ms: Annotated[float, Depends(get_execution_time_dep)],
+) -> HealthResponse:
+    """Health check endpoint verifying backend service availability using Dependency Injection."""
+    return HealthResponse(
+        success=True,
+        message="Health check successful.",
+        request_id=request_id,
+        data=HealthData(
+            status="healthy",
+            service="desearch-ai-backend",
+            version=settings.APP_VERSION,
+        ),
+        metadata=ResponseMetadata(
+            execution_time_ms=execution_time_ms,
+            api_version=settings.APP_VERSION,
+            environment=settings.ENVIRONMENT.value,
+        ),
     )

@@ -2,27 +2,17 @@
 
 import logging
 import sys
-from typing import Optional
 
 from app.core.config import settings
+from app.core.constants import DEFAULT_DATE_FORMAT, DEFAULT_LOG_FORMAT
 
 
-def setup_logging(log_level: Optional[str] = None) -> logging.Logger:
-    """Configure and return the root logger for the application.
-
-    Args:
-        log_level: Optional log level override (DEBUG, INFO, WARNING, ERROR).
-
-    Returns:
-        logging.Logger: Configured logger instance.
-    """
-    level_str = log_level or ("DEBUG" if settings.DEBUG else "INFO")
+def setup_logging(log_level: str | None = None) -> logging.Logger:
+    """Configure and return the root logger for the application."""
+    level_str = log_level or settings.LOG_LEVEL.value or ("DEBUG" if settings.DEBUG else "INFO")
     numeric_level = getattr(logging, level_str.upper(), logging.INFO)
 
-    log_format = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
-    date_format = "%Y-%m-%d %H:%M:%S"
-
-    formatter = logging.Formatter(fmt=log_format, datefmt=date_format)
+    formatter = logging.Formatter(fmt=DEFAULT_LOG_FORMAT, datefmt=DEFAULT_DATE_FORMAT)
 
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
@@ -31,7 +21,6 @@ def setup_logging(log_level: Optional[str] = None) -> logging.Logger:
     root_logger = logging.getLogger()
     root_logger.setLevel(numeric_level)
 
-    # Avoid adding duplicate handlers if setup_logging is called multiple times
     if not root_logger.handlers:
         root_logger.addHandler(console_handler)
 
@@ -42,12 +31,5 @@ def setup_logging(log_level: Optional[str] = None) -> logging.Logger:
 
 
 def get_logger(name: str) -> logging.Logger:
-    """Get a named logger instance inheriting standard configuration.
-
-    Args:
-        name: Name of the module or component requesting logger.
-
-    Returns:
-        logging.Logger: Configured logger instance.
-    """
+    """Get a named logger instance inheriting standard configuration."""
     return logging.getLogger(f"desearch_ai.{name}")

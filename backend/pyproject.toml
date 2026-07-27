@@ -9,7 +9,7 @@ description = "Backend foundation for Desearch AI — Deep Research. Smarter Dec
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [
-    { name = "Desearch AI Engineering Team", email = "engineering@example.com" }
+    { name = "Desearch AI Engineering Team", email = "engineering@desearch.ai" }
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -23,4 +23,80 @@ dependencies = [
     "uvicorn[standard]>=0.28.0,<0.35.0",
     "pydantic-settings>=2.2.0,<3.0.0",
     "python-dotenv>=1.0.0,<2.0.0",
+    "black>=24.0.0",
+    "ruff>=0.3.0",
+    "mypy>=1.9.0",
+    "isort>=5.13.0",
+    "pre-commit>=3.6.0",
 ]
+
+# Black Formatter Configuration
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+# Ruff Linter Configuration
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C90", # mccabe complexity
+    "UP",  # pyupgrade
+    "N",   # pep8-naming
+]
+ignore = [
+    "E501",  # Line length handled by Black
+    "N802",  # Allow uppercase property names for configuration settings
+    "N818",  # Allow AppException naming specified by ticket contracts
+    "UP046", # Allow Generic[T] subclassing for Pydantic generic models
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+# isort Import Sorter Configuration
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["app"]
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+
+# mypy Static Type Checker Configuration
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+show_error_codes = true
+pretty = true
