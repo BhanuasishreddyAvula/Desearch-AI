@@ -1,7 +1,6 @@
 """Custom application exception hierarchy for Desearch AI."""
 
 from typing import Any
-
 from fastapi import status
 
 
@@ -31,6 +30,26 @@ class AppException(Exception):
             self.error_type = error_type
 
 
+class ConfigurationException(AppException):
+    """Raised when required environment or system configuration is missing."""
+
+    status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
+    error_code: str = "CONFIGURATION_ERROR"
+    error_type: str = "SYSTEM_ERROR"
+
+    def __init__(
+        self,
+        message: str = (
+            "System configuration is invalid or missing required credentials"
+        ),
+        details: Any | None = None,
+        error_code: str | None = None,
+    ) -> None:
+        super().__init__(
+            message=message, details=details, error_code=error_code
+        )
+
+
 class ValidationException(AppException):
     """Raised when request payload or parameters fail validation."""
 
@@ -42,8 +61,11 @@ class ValidationException(AppException):
         self,
         message: str = "Request parameters or payload failed validation",
         details: Any | None = None,
+        error_code: str | None = None,
     ) -> None:
-        super().__init__(message=message, details=details)
+        super().__init__(
+            message=message, details=details, error_code=error_code
+        )
 
 
 class AuthenticationException(AppException):
@@ -55,10 +77,15 @@ class AuthenticationException(AppException):
 
     def __init__(
         self,
-        message: str = ("Authentication credentials were not provided or are invalid"),
+        message: str = (
+            "Authentication credentials were not provided or are invalid"
+        ),
         details: Any | None = None,
+        error_code: str | None = None,
     ) -> None:
-        super().__init__(message=message, details=details)
+        super().__init__(
+            message=message, details=details, error_code=error_code
+        )
 
 
 class AuthorizationException(AppException):
@@ -72,8 +99,11 @@ class AuthorizationException(AppException):
         self,
         message: str = "You do not have permission to perform this action",
         details: Any | None = None,
+        error_code: str | None = None,
     ) -> None:
-        super().__init__(message=message, details=details)
+        super().__init__(
+            message=message, details=details, error_code=error_code
+        )
 
 
 class ResourceNotFoundException(AppException):
@@ -87,8 +117,11 @@ class ResourceNotFoundException(AppException):
         self,
         message: str = "The requested resource was not found",
         details: Any | None = None,
+        error_code: str | None = None,
     ) -> None:
-        super().__init__(message=message, details=details)
+        super().__init__(
+            message=message, details=details, error_code=error_code
+        )
 
 
 class ConflictException(AppException):
@@ -102,8 +135,11 @@ class ConflictException(AppException):
         self,
         message: str = "Operation conflicts with existing resource state",
         details: Any | None = None,
+        error_code: str | None = None,
     ) -> None:
-        super().__init__(message=message, details=details)
+        super().__init__(
+            message=message, details=details, error_code=error_code
+        )
 
 
 class RateLimitException(AppException):
@@ -117,8 +153,11 @@ class RateLimitException(AppException):
         self,
         message: str = "Rate limit exceeded. Please try again later",
         details: Any | None = None,
+        error_code: str | None = None,
     ) -> None:
-        super().__init__(message=message, details=details)
+        super().__init__(
+            message=message, details=details, error_code=error_code
+        )
 
 
 class ExternalServiceException(AppException):
@@ -132,5 +171,8 @@ class ExternalServiceException(AppException):
         self,
         message: str = "An external service or integration request failed",
         details: Any | None = None,
+        error_code: str | None = None,
     ) -> None:
-        super().__init__(message=message, details=details)
+        super().__init__(
+            message=message, details=details, error_code=error_code
+        )

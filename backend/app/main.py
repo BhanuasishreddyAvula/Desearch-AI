@@ -26,6 +26,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         SystemEvents.APPLICATION_STARTED,
         f"Starting up {settings.APP_NAME} v{settings.APP_VERSION} in {settings.ENVIRONMENT} mode",
     )
+
+    # Startup OpenRouter configuration check
+    if not settings.OPENROUTER_API_KEY:
+        logger.warning(
+            "LLM Platform initialized: OPENROUTER_API_KEY is not configured in environment."
+        )
+    else:
+        logger.info(
+            "LLM Platform initialized: OpenRouter provider active with model '%s'",
+            settings.LLM_MODEL,
+        )
+
     yield
     logger.event(
         SystemEvents.APPLICATION_STOPPED,

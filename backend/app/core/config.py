@@ -1,29 +1,21 @@
-"""Single configuration entry point aggregating all modular settings."""
+"""Master configuration settings exposing a flat public API."""
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.enums import Environment, LLMProvider, LogLevel
-from app.core.settings.app import AppSettings
-from app.core.settings.llm import LLMSettings
-from app.core.settings.observability import ObservabilitySettings
-from app.core.settings.redis import RedisSettings
-from app.core.settings.security import SecuritySettings
-from app.core.settings.supabase import SupabaseSettings
+from app.core.settings import (
+    AppSettings,
+    LLMSettings,
+    ObservabilitySettings,
+    RedisSettings,
+    SecuritySettings,
+    SupabaseSettings,
+)
 
 
 class Settings(BaseSettings):
-    """Master configuration class composed of domain settings modules,
-
-    exposing a unified flat public API for application consumption.
-    """
-
-    app: AppSettings = Field(default_factory=AppSettings)
-    security: SecuritySettings = Field(default_factory=SecuritySettings)
-    supabase: SupabaseSettings = Field(default_factory=SupabaseSettings)
-    llm: LLMSettings = Field(default_factory=LLMSettings)
-    redis: RedisSettings = Field(default_factory=RedisSettings)
-    observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)
+    """Master application settings class exposing a flat public API."""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -31,8 +23,18 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # Modular Domain Sub-Settings
+    app: AppSettings = Field(default_factory=AppSettings)
+    security: SecuritySettings = Field(default_factory=SecuritySettings)
+    supabase: SupabaseSettings = Field(default_factory=SupabaseSettings)
+    llm: LLMSettings = Field(default_factory=LLMSettings)
+    redis: RedisSettings = Field(default_factory=RedisSettings)
+    observability: ObservabilitySettings = Field(
+        default_factory=ObservabilitySettings
+    )
+
     # --------------------------------------------------------------------------
-    # Flat Public Configuration API (AppSettings)
+    # Flat Public Accessors — Application Settings
     # --------------------------------------------------------------------------
     @property
     def APP_NAME(self) -> str:
@@ -63,7 +65,7 @@ class Settings(BaseSettings):
         return self.app.API_V1_STR
 
     # --------------------------------------------------------------------------
-    # Flat Public Configuration API (SecuritySettings)
+    # Flat Public Accessors — Security Settings
     # --------------------------------------------------------------------------
     @property
     def SECRET_KEY(self) -> str:
@@ -82,7 +84,7 @@ class Settings(BaseSettings):
         return self.security.API_KEY_SECRET
 
     # --------------------------------------------------------------------------
-    # Flat Public Configuration API (SupabaseSettings)
+    # Flat Public Accessors — Supabase Settings
     # --------------------------------------------------------------------------
     @property
     def SUPABASE_URL(self) -> str:
@@ -101,7 +103,7 @@ class Settings(BaseSettings):
         return self.supabase.DATABASE_URL
 
     # --------------------------------------------------------------------------
-    # Flat Public Configuration API (LLMSettings)
+    # Flat Public Accessors — LLM Settings
     # --------------------------------------------------------------------------
     @property
     def LLM_PROVIDER(self) -> LLMProvider:
@@ -112,8 +114,12 @@ class Settings(BaseSettings):
         return self.llm.LLM_MODEL
 
     @property
-    def API_KEY(self) -> str:
-        return self.llm.API_KEY
+    def OPENROUTER_API_KEY(self) -> str | None:
+        return self.llm.OPENROUTER_API_KEY
+
+    @property
+    def OPENROUTER_BASE_URL(self) -> str:
+        return self.llm.OPENROUTER_BASE_URL
 
     @property
     def TEMPERATURE(self) -> float:
@@ -132,7 +138,7 @@ class Settings(BaseSettings):
         return self.llm.MAX_RETRIES
 
     # --------------------------------------------------------------------------
-    # Flat Public Configuration API (RedisSettings)
+    # Flat Public Accessors — Redis Settings
     # --------------------------------------------------------------------------
     @property
     def REDIS_URL(self) -> str:
@@ -147,7 +153,7 @@ class Settings(BaseSettings):
         return self.redis.RATE_LIMIT_WINDOW
 
     # --------------------------------------------------------------------------
-    # Flat Public Configuration API (ObservabilitySettings)
+    # Flat Public Accessors — Observability Settings
     # --------------------------------------------------------------------------
     @property
     def LOG_LEVEL(self) -> LogLevel:

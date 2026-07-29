@@ -1,12 +1,14 @@
 """Application service container centralizing shared singleton infrastructure objects."""
 
 from app.core.config import Settings, settings
+from app.core.llm.client import LLMClient
 from app.core.repositories.session import AbstractSessionRepository
 from app.observability.logger import AppLogger, get_app_logger
 from app.observability.metrics import MetricsCollector, metrics
 from app.observability.tracing import Tracer, tracer
 from app.sessions.repository import InMemorySessionRepository
 from app.sessions.supabase_repository import SupabaseSessionRepository
+from app.tools.registry import ToolRegistry
 
 
 class Container:
@@ -17,6 +19,8 @@ class Container:
         self.logger: AppLogger = get_app_logger("container")
         self.tracer: Tracer = tracer
         self.metrics: MetricsCollector = metrics
+        self.llm_client: LLMClient = LLMClient()
+        self.tool_registry: ToolRegistry = ToolRegistry()
 
         # Inject Supabase repository if credentials configured, else fallback to InMemory
         if settings.SUPABASE_URL and (

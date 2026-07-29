@@ -25,6 +25,7 @@ class LogLevel(StrEnum):
 class LLMProvider(StrEnum):
     """Supported LLM provider options."""
 
+    OPENROUTER = "openrouter"
     GEMINI = "gemini"
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
