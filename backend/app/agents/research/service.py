@@ -1,5 +1,8 @@
 """Service layer orchestrating Research Agent execution."""
 
+from collections.abc import Callable
+from typing import Any
+
 from app.agents.planner.models import PlannerResult
 from app.agents.research.models import ResearchResult
 from app.agents.research.research import ResearchAgent
@@ -19,7 +22,10 @@ class ResearchService:
         self.research_agent = research_agent
 
     def execute_research(
-        self, session_id: str, plan: PlannerResult
+        self,
+        session_id: str,
+        plan: PlannerResult,
+        on_progress: Callable[[str, str, dict[str, Any]], None] | None = None,
     ) -> ResearchResult:
         """Verify research session existence and execute ResearchAgent workflow."""
         session = self.session_repository.get_by_id(session_id)
@@ -42,4 +48,5 @@ class ResearchService:
             session_id=session_id,
             goal=plan.goal or session.query,
             tasks=tasks_dict,
+            on_progress=on_progress,
         )

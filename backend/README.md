@@ -6,7 +6,7 @@
 
 ## Purpose
 
-The backend service coordinates application lifecycle events, modular domain settings, standardized API response envelopes, centralized exception handling, HTTP middleware, observability (logging, tracing, metrics, events), dependency injection, abstract repository persistence layers, Supabase PostgreSQL database integration, research session management, production multi-agent AI pipelines (Planner Agent, Research Agent, Writer Agent, Reviewer Agent, Multi-Agent Orchestrator), real search & web content extraction tools (`SearchTool` via Exa, `ContentTool` via Firecrawl), universal tool registration (`ToolRegistry`), deterministic report exports (Markdown `.md` and PDF `.pdf`), and routing for the **Desearch AI** research workbench.
+The backend service coordinates application lifecycle events, modular domain settings, standardized API response envelopes, centralized exception handling, HTTP middleware, observability (logging, tracing, metrics, events), dependency injection, abstract repository persistence layers, Supabase PostgreSQL database integration, research session management, production multi-agent AI pipelines (Planner Agent, Research Agent, Writer Agent, Reviewer Agent, Multi-Agent Orchestrator), real search & web content extraction tools (`SearchTool` via Exa, `ContentTool` via Firecrawl), universal tool registration (`ToolRegistry`), real-time research progress streaming with Server-Sent Events (`POST /api/v1/orchestrator/stream`), deterministic report exports (Markdown `.md` and PDF `.pdf`), and routing for the **Desearch AI** research workbench.
 
 ---
 
@@ -40,6 +40,26 @@ Production Tool Providers
 - **Rule 5 (Reviewer Agent Boundary)**: The Reviewer Agent MUST NEVER access `ToolRegistry`, perform research, or modify the report text. Its ONLY responsibility is quality evaluation and evidence alignment validation.
 - **Rule 6 (Tool Provider Boundary)**: AI Agents MUST NEVER communicate directly with Exa or Firecrawl. Agents request tools ONLY through `ToolRegistry`.
 - **Rule 7 (Export Boundary)**: Report generation and report export are separate responsibilities. Report export is a 100% deterministic formatting operation that MUST NOT invoke LLMs or external search/content APIs.
+- **Rule 8 (Streaming Boundary)**: Streaming concerns (SSE, HTTP headers, FastAPI `StreamingResponse`) MUST remain decoupled from agent business logic. Agents emit domain progress events via listener callbacks without knowing about transport layers.
+
+---
+
+## Real-Time Progress Streaming (SSE)
+
+The backend provides Server-Sent Events (SSE) progress streaming via `POST /api/v1/orchestrator/stream`.
+
+- **Endpoint**: `POST /api/v1/orchestrator/stream`
+- **Media Type**: `text/event-stream`
+- **Shared Business Logic**: Both `POST /orchestrator/run` and `POST /orchestrator/stream` execute identical underlying business logic via `MultiAgentOrchestrator`.
+- **Event Vocabulary & Progress Percentages**:
+  - `workflow.started` (0%)
+  - `planner.started` (5%) -> `planner.completed` (15%)
+  - `research.started` (20%) -> `research.searching` (25%) -> `research.extracting` (40%) -> `research.completed` (60%)
+  - `writer.started` (65%) -> `writer.completed` (80%)
+  - `reviewer.started` (85%) -> `reviewer.completed` (95%)
+  - `report.persisted` (98%)
+  - `workflow.completed` (100%)
+  - `workflow.failed` (100% on exception)
 
 ---
 

@@ -1,5 +1,6 @@
 """Research Agent implementation querying ToolRegistry and structuring bounded evidence."""
 
+from collections.abc import Callable
 import json
 from typing import Any
 
@@ -36,6 +37,7 @@ class ResearchAgent:
         session_id: str,
         goal: str,
         tasks: list[dict[str, str]],
+        on_progress: Callable[[str, str, dict[str, Any]], None] | None = None,
     ) -> ResearchResult:
         """Execute research tasks using tools from ToolRegistry and return structured ResearchResult."""
         logger.event(
@@ -77,6 +79,13 @@ class ResearchAgent:
             task_desc = task.get("description", goal)
 
             logger.info("Tool Requested | ID: web_search | Task: %s", task_title)
+            if on_progress:
+                on_progress(
+                    "research.searching",
+                    "Researching",
+                    {"task": task_title, "query": task_desc[:40]},
+                )
+
             search_res = search_tool.execute(query=task_desc, max_results=3)
             tools_executed.add("web_search")
             logger.info("Tool Returned | ID: web_search")
@@ -104,6 +113,13 @@ class ResearchAgent:
                 else:
                     try:
                         logger.info("Tool Requested | ID: web_fetch | URL: %s", target_url)
+                        if on_progress:
+                            on_progress(
+                                "research.extracting",
+                                "Researching",
+                                {"url": target_url},
+                            )
+
                         content_res = content_tool.execute(url=target_url)
                         tools_executed.add("web_fetch")
                         logger.info("Tool Returned | ID: web_fetch")

@@ -72,16 +72,23 @@ class WriterAgent:
         response_text: str,
         research_result: ResearchResult,
     ) -> ReportResult:
-        """Parse raw JSON string from LLM response into ReportResult model."""
-        try:
-            cleaned_json = response_text.strip()
-            if cleaned_json.startswith("```json"):
-                cleaned_json = (
-                    cleaned_json.removeprefix("```json")
-                    .removesuffix("```")
-                    .strip()
-                )
+        """Parse raw JSON string or raw Markdown from LLM response into ReportResult model."""
+        cleaned_json = response_text.strip()
+        if cleaned_json.startswith("```"):
+            lines = cleaned_json.splitlines()
+            if lines and lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            cleaned_json = "\n".join(lines).strip()
 
+        if not cleaned_json.startswith("{"):
+            start_idx = cleaned_json.find("{")
+            end_idx = cleaned_json.rfind("}")
+            if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                cleaned_json = cleaned_json[start_idx : end_idx + 1]
+
+        try:
             data = json.loads(cleaned_json)
 
             sections = [
@@ -127,10 +134,94 @@ class WriterAgent:
             )
 
         except (json.JSONDecodeError, ValueError) as exc:
-            logger.error(
-                "Failed to parse Writer Agent JSON output: %s", str(exc)
+            logger.warning(
+                "Writer Agent JSON parse failed (%s). Attempting raw markdown fallback...",
+                str(exc),
             )
-            raise ValidationException(
-                message="Writer Agent produced invalid JSON output",
-                details={"raw_response": response_text},
-            ) from exc
+            return self._build_raw_markdown_fallback(
+                session_id, response_text, research_result
+            )
+
+    def _build_raw_markdown_fallback(
+        self,
+        session_id: str,
+        response_text: str,
+        research_result: ResearchResult,
+    ) -> ReportResult:
+        """Fallback parser constructing ReportResult directly from raw Markdown LLM response."""
+        cleaned_text = response_text.strip()
+        if cleaned_text.startswith("```"):
+            lines = cleaned_text.splitlines()
+            if lines and lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            cleaned_text = "\n".join(lines).strip()
+
+        lines = cleaned_text.splitlines()
+        title = "Desearch AI Research Report"
+        for line in lines:
+            if line.startswith("# "):
+                title = line.removeprefix("# ").strip()
+                break
+
+        sections: list[ReportSection] = []
+        current_title = "Executive Summary"
+        current_content: list[str] = []
+        current_level = 2
+
+        for line in lines:
+            if line.startswith("## "):
+                if current_content:
+                    sections.append(
+                        ReportSection(
+                            title=current_title,
+                            content="\n".join(current_content).strip(),
+                            level=current_level,
+                        )
+                    )
+                current_title = line.removeprefix("## ").strip()
+                current_content = []
+            elif line.startswith("# "):
+                continue
+            else:
+                current_content.append(line)
+
+        if current_content:
+            sections.append(
+                ReportSection(
+                    title=current_title,
+                    content="\n".join(current_content).strip(),
+                    level=current_level,
+                )
+            )
+
+        if not sections:
+            sections.append(
+                ReportSection(
+                    title="Findings",
+                    content=cleaned_text,
+                    level=2,
+                )
+            )
+
+        exec_summary = sections[0].content[:500] if sections else cleaned_text[:500]
+        sources_cited = research_result.sources_consulted
+
+        word_count = len(cleaned_text.split())
+        metadata = ReportMetadata(
+            word_count=word_count,
+            sections_count=len(sections),
+            evidence_cited_count=len(research_result.evidence_items),
+            sources_count=len(sources_cited),
+        )
+
+        return ReportResult(
+            session_id=session_id,
+            title=title,
+            executive_summary=exec_summary,
+            full_markdown=cleaned_text,
+            sections=sections,
+            sources_cited=sources_cited,
+            metadata=metadata,
+        )

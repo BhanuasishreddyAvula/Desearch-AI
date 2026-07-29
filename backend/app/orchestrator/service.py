@@ -1,7 +1,14 @@
 """Service layer for Multi-Agent Orchestrator."""
 
+from collections.abc import Callable
+
 from app.core.exceptions import ResourceNotFoundException
 from app.core.repositories.session import AbstractSessionRepository
+from app.orchestrator.events import (
+    ProgressEvent,
+    ProgressEventType,
+    create_progress_event,
+)
 from app.orchestrator.models import WorkflowResult
 from app.orchestrator.orchestrator import MultiAgentOrchestrator
 from app.sessions.enums import SessionStatus
@@ -19,7 +26,10 @@ class OrchestratorService:
         self.orchestrator = orchestrator
 
     def execute_session_workflow(
-        self, session_id: str, query: str
+        self,
+        session_id: str,
+        query: str,
+        progress_listener: Callable[[ProgressEvent], None] | None = None,
     ) -> WorkflowResult:
         """Validate session in Supabase, trigger Orchestrator flow, and persist canonical report."""
         session = self.session_repository.get_by_id(session_id)
@@ -33,7 +43,9 @@ class OrchestratorService:
 
         try:
             workflow_result = self.orchestrator.run_workflow(
-                session_id=session_id, query=query
+                session_id=session_id,
+                query=query,
+                progress_listener=progress_listener,
             )
 
             # Update session status to COMPLETED and persist canonical report_result in metadata
@@ -65,6 +77,26 @@ class OrchestratorService:
             }
 
             self.session_repository.update(session)
+
+            if progress_listener:
+                progress_listener(
+                    create_progress_event(
+                        ProgressEventType.REPORT_PERSISTED,
+                        "Persistence",
+                        "Report persisted to database",
+                        session_id,
+                    )
+                )
+                progress_listener(
+                    create_progress_event(
+                        ProgressEventType.WORKFLOW_COMPLETED,
+                        "Completed",
+                        "Research workflow completed successfully.",
+                        session_id,
+                        {"total_execution_time_ms": workflow_result.total_execution_time_ms},
+                    )
+                )
+
             return workflow_result
         except Exception:
             session.status = SessionStatus.FAILED

@@ -1,8 +1,11 @@
 """API router for Multi-Agent Orchestrator endpoints."""
 
+import asyncio
+from collections.abc import AsyncGenerator
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 
 from app.agents.planner.router import get_planner_service
 from app.agents.planner.schemas import PlannerResultSchema, TaskSchema
@@ -27,6 +30,13 @@ from app.dependencies import (
     get_request_id_dep,
     get_session_repository_dep,
 )
+from app.observability.logger import get_app_logger
+from app.orchestrator.events import (
+    ProgressEvent,
+    ProgressEventType,
+    ProgressStreamListener,
+    create_progress_event,
+)
 from app.orchestrator.orchestrator import MultiAgentOrchestrator
 from app.orchestrator.schemas import (
     AgentExecutionSchema,
@@ -37,6 +47,7 @@ from app.orchestrator.schemas import (
 from app.orchestrator.service import OrchestratorService
 from app.schemas.metadata import ResponseMetadata
 
+logger = get_app_logger("orchestrator.router")
 router = APIRouter(tags=["Orchestrator"])
 
 
@@ -208,4 +219,71 @@ async def run_workflow(
             api_version=settings.APP_VERSION,
             environment=settings.ENVIRONMENT.value,
         ),
+    )
+
+
+@router.post(
+    "/stream",
+    summary="Stream Multi-Agent Research Workflow Progress (SSE)",
+    description="Stream real-time multi-agent research workflow progress events via Server-Sent Events (SSE).",
+    response_class=StreamingResponse,
+)
+async def stream_workflow(
+    data: WorkflowRunRequest,
+    service: Annotated[OrchestratorService, Depends(get_orchestrator_service)],
+) -> StreamingResponse:
+    """Stream multi-agent research workflow progress using Server-Sent Events (SSE)."""
+    loop = asyncio.get_running_loop()
+    event_queue: asyncio.Queue[ProgressEvent | None] = asyncio.Queue()
+
+    listener_guard = ProgressStreamListener(
+        lambda ev: loop.call_soon_threadsafe(event_queue.put_nowait, ev)
+    )
+
+    async def run_workflow_background() -> None:
+        try:
+            await asyncio.to_thread(
+                service.execute_session_workflow,
+                data.session_id,
+                data.query,
+                listener_guard,
+            )
+        except Exception as exc:
+            if not listener_guard.terminal_emitted:
+                failed_event = create_progress_event(
+                    ProgressEventType.WORKFLOW_FAILED,
+                    "Failed",
+                    f"Workflow execution failed: {str(exc)}",
+                    data.session_id,
+                    {"error": str(exc)},
+                )
+                listener_guard.emit(failed_event)
+        finally:
+            loop.call_soon_threadsafe(event_queue.put_nowait, None)
+
+    async def sse_generator() -> AsyncGenerator[str, None]:
+        bg_task = asyncio.create_task(run_workflow_background())
+
+        try:
+            while True:
+                try:
+                    event = await asyncio.wait_for(event_queue.get(), timeout=15.0)
+                    if event is None:
+                        break
+                    yield event.format_sse()
+                except TimeoutError:
+                    yield ": heartbeat\n\n"
+        except asyncio.CancelledError:
+            logger.info("SSE Client Disconnected | Session: %s", data.session_id)
+            bg_task.cancel()
+            raise
+
+    return StreamingResponse(
+        sse_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
