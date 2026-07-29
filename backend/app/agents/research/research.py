@@ -1,8 +1,12 @@
-"""Research Agent implementation querying ToolRegistry and structuring evidence."""
+"""Research Agent implementation querying ToolRegistry and structuring bounded evidence."""
 
 import json
 from typing import Any
 
+from app.agents.research.context_builder import (
+    ResearchContextBuilder,
+    normalize_url,
+)
 from app.agents.research.models import Evidence, EvidenceCollection, ResearchResult
 from app.agents.research.prompts import (
     RESEARCH_AGENT_SYSTEM_PROMPT,
@@ -39,60 +43,92 @@ class ResearchAgent:
             f"Research Started | Session: {session_id} | Goal: '{goal[:60]}...'",
         )
 
-        tool_outputs: list[dict[str, Any]] = []
+        context_builder = ResearchContextBuilder()
         tools_executed: set[str] = set()
         sources_consulted: set[str] = set()
 
-        # Step 1: Request and execute tools from ToolRegistry for each task
+        all_search_items: list[dict[str, Any]] = []
+        all_extracted_docs: list[dict[str, Any]] = []
+
+        # Step 1: Obtain web_search tool from ToolRegistry
+        if not self.tool_registry.exists("web_search"):
+            logger.error("Missing Tool | Requested tool 'web_search' not registered")
+            raise ResourceNotFoundException(
+                message="Tool 'web_search' requested by Research Agent is not registered."
+            )
+
+        search_tool = self.tool_registry.get("web_search")
+        if not search_tool or not search_tool.enabled:
+            logger.error("Disabled Tool | Requested tool 'web_search' is disabled")
+            raise ValidationException(
+                message="Tool 'web_search' requested by Research Agent is disabled."
+            )
+
+        # Check if content extraction tool web_fetch is available
+        content_tool = (
+            self.tool_registry.get("web_fetch")
+            if self.tool_registry.exists("web_fetch")
+            else None
+        )
+
+        # Step 2: Execute Search & Content Extraction with Deduplication
         for idx, task in enumerate(tasks):
             task_title = task.get("title", f"Task {idx+1}")
             task_desc = task.get("description", goal)
 
-            # Determine appropriate tool ID based on category/task context
-            tool_id = "web_search"
-            if "fetch" in task_title.lower() or "page" in task_title.lower():
-                tool_id = "web_fetch"
-            elif "doc" in task_title.lower() or "read" in task_title.lower():
-                tool_id = "document_reader"
-            elif "cite" in task_title.lower() or "quote" in task_title.lower():
-                tool_id = "citation_extractor"
+            logger.info("Tool Requested | ID: web_search | Task: %s", task_title)
+            search_res = search_tool.execute(query=task_desc, max_results=3)
+            tools_executed.add("web_search")
+            logger.info("Tool Returned | ID: web_search")
 
-            # Must obtain tool ONLY through ToolRegistry
-            if not self.tool_registry.exists(tool_id):
-                logger.error("Missing Tool | Requested tool '%s' not registered", tool_id)
-                raise ResourceNotFoundException(
-                    message=f"Tool '{tool_id}' requested by Research Agent is not registered."
-                )
+            raw_results = search_res.get("results", [])
+            task_urls: list[str] = []
 
-            tool = self.tool_registry.get(tool_id)
-            if not tool or not tool.enabled:
-                logger.error("Disabled Tool | Requested tool '%s' is disabled", tool_id)
-                raise ValidationException(
-                    message=f"Tool '{tool_id}' requested by Research Agent is disabled."
-                )
+            for item in raw_results:
+                if isinstance(item, dict):
+                    all_search_items.append(item)
+                    if "url" in item and item["url"]:
+                        norm = normalize_url(item["url"])
+                        sources_consulted.add(norm)
+                        task_urls.append(norm)
 
-            logger.info("Tool Requested | ID: %s | Task: %s", tool_id, task_title)
-            tool_res = tool.execute(query=task_desc, url="https://docs.example.com/spec", file_path="spec.pdf")
-            tools_executed.add(tool_id)
-            logger.info("Tool Returned | ID: %s", tool_id)
+            # Step 3: Execute Content Extraction (or reuse from execution cache)
+            if content_tool and content_tool.enabled and task_urls:
+                target_url = task_urls[0]
 
-            tool_outputs.append({
-                "task_id": task.get("id", f"task_{idx+1}"),
-                "task_title": task_title,
-                "tool_used": tool_id,
-                "output": tool_res,
-            })
+                # Execution-scoped URL Deduplication check
+                cached_doc = context_builder.get_cached_extraction(target_url)
+                if cached_doc:
+                    tools_executed.add("web_fetch")
+                    all_extracted_docs.append(cached_doc)
+                else:
+                    try:
+                        logger.info("Tool Requested | ID: web_fetch | URL: %s", target_url)
+                        content_res = content_tool.execute(url=target_url)
+                        tools_executed.add("web_fetch")
+                        logger.info("Tool Returned | ID: web_fetch")
 
-            # Track sources consulted
-            if "results" in tool_res:
-                for item in tool_res["results"]:
-                    if "url" in item:
-                        sources_consulted.add(item["url"])
-            elif "url" in tool_res:
-                sources_consulted.add(tool_res["url"])
+                        doc_entry = {
+                            "url": target_url,
+                            "title": content_res.get("title", f"Document ({target_url})"),
+                            "markdown": content_res.get("markdown", "") or content_res.get("plain_text", ""),
+                        }
+                        context_builder.cache_extraction(target_url, doc_entry)
+                        all_extracted_docs.append(doc_entry)
+                    except Exception as exc:
+                        logger.warning(
+                            "Content extraction failed for URL '%s': %s",
+                            target_url,
+                            str(exc),
+                        )
 
-        # Step 2: Use LLMClient to process tool outputs into structured evidence
-        prompt = build_research_user_prompt(goal, tasks, tool_outputs)
+        # Step 4: Construct Bounded Research Context
+        bounded_context_text, metrics = context_builder.build_bounded_context(
+            all_search_items, all_extracted_docs
+        )
+
+        # Step 5: Use LLMClient to process bounded context into structured evidence
+        prompt = build_research_user_prompt(goal, tasks, bounded_context_text)
         llm_response = self.llm_client.generate_chat_completion(
             system_prompt=RESEARCH_AGENT_SYSTEM_PROMPT,
             user_prompt=prompt,
@@ -100,12 +136,16 @@ class ResearchAgent:
         )
 
         result = self._parse_json_response(
-            session_id, goal, llm_response.content, list(tools_executed), list(sources_consulted)
+            session_id,
+            goal,
+            llm_response.content,
+            list(tools_executed),
+            list(sources_consulted),
         )
 
         logger.event(
             SystemEvents.AGENT_COMPLETED,
-            f"Research Completed | Evidence Added: {len(result.evidence_items)} | Tools: {len(result.tools_executed)}",
+            f"Research Completed | Evidence Added: {len(result.evidence_items)} | Tools: {len(result.tools_executed)} | Included Chars: {metrics['included_characters']}",
         )
         return result
 
@@ -136,7 +176,14 @@ class ResearchAgent:
                     id=str(item.get("id", f"ev_{idx+1}")),
                     title=str(item.get("title", f"Evidence {idx+1}")),
                     summary=str(item.get("summary", "")),
-                    source=str(item.get("source", "https://docs.example.com/spec")),
+                    source=str(
+                        item.get(
+                            "source",
+                            sources_consulted[0]
+                            if sources_consulted
+                            else "https://exa.ai",
+                        )
+                    ),
                     tool_used=str(item.get("tool_used", "web_search")),
                     confidence=float(item.get("confidence", 0.85)),
                     metadata=dict(item.get("metadata", {})),
@@ -144,14 +191,17 @@ class ResearchAgent:
                 collection.add(ev)
                 logger.info("Evidence Added | ID: %s | Source: %s", ev.id, ev.source)
 
-            # If LLM didn't return sources/tools, use gathered sets
-            res_sources = list(data.get("sources_consulted", [])) or sources_consulted or ["https://docs.example.com/spec"]
-            res_tools = list(data.get("tools_executed", [])) or tools_executed or ["web_search"]
+            res_sources = list(data.get("sources_consulted", [])) or sources_consulted
+            res_tools = list(data.get("tools_executed", [])) or tools_executed
 
             return ResearchResult(
                 session_id=session_id,
                 goal=goal,
-                summary=str(data.get("summary", "Structured research evidence collection")),
+                summary=str(
+                    data.get(
+                        "summary", "Structured research evidence collection"
+                    )
+                ),
                 evidence_items=collection.list_all(),
                 sources_consulted=res_sources,
                 tools_executed=res_tools,

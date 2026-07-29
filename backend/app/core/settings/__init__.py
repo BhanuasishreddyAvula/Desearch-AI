@@ -6,6 +6,7 @@ from app.core.settings.observability import ObservabilitySettings
 from app.core.settings.redis import RedisSettings
 from app.core.settings.security import SecuritySettings
 from app.core.settings.supabase import SupabaseSettings
+from app.core.settings.tools import ToolsSettings
 
 __all__ = [
     "AppSettings",
@@ -14,4 +15,5 @@ __all__ = [
     "LLMSettings",
     "RedisSettings",
     "ObservabilitySettings",
+    "ToolsSettings",
 ]

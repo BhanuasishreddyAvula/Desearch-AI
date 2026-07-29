@@ -5,9 +5,9 @@ from app.observability.logger import get_app_logger
 from app.tools.base import BaseTool
 from app.tools.builtin.citation_extractor import CitationExtractorTool
 from app.tools.builtin.document_reader import DocumentReaderTool
-from app.tools.builtin.web_fetch import WebFetchTool
-from app.tools.builtin.web_search import WebSearchTool
+from app.tools.content.tool import ContentTool
 from app.tools.enums import ToolCategory
+from app.tools.search.tool import SearchTool
 
 logger = get_app_logger("tools.registry")
 
@@ -24,14 +24,14 @@ class ToolRegistry:
         )
 
     def _register_builtin_tools(self) -> None:
-        """Automatically register core built-in metadata tools."""
-        builtins: list[BaseTool] = [
-            WebSearchTool(),
-            WebFetchTool(),
+        """Automatically register core production search & content tools along with built-ins."""
+        tools: list[BaseTool] = [
+            SearchTool(),
+            ContentTool(),
             DocumentReaderTool(),
             CitationExtractorTool(),
         ]
-        for tool in builtins:
+        for tool in tools:
             self.register(tool)
 
     def register(self, tool: BaseTool) -> None:

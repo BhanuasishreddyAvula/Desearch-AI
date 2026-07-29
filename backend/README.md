@@ -6,7 +6,7 @@
 
 ## Purpose
 
-The backend service coordinates application lifecycle events, modular domain settings, standardized API response envelopes, centralized exception handling, HTTP middleware, observability (logging, tracing, metrics, events), dependency injection, abstract repository persistence layers, Supabase PostgreSQL database integration, research session management, production multi-agent AI pipelines (Planner Agent, Research Agent, Writer Agent, Reviewer Agent, Multi-Agent Orchestrator), universal tool registration (`ToolRegistry`), and routing for the **Desearch AI** research workbench.
+The backend service coordinates application lifecycle events, modular domain settings, standardized API response envelopes, centralized exception handling, HTTP middleware, observability (logging, tracing, metrics, events), dependency injection, abstract repository persistence layers, Supabase PostgreSQL database integration, research session management, production multi-agent AI pipelines (Planner Agent, Research Agent, Writer Agent, Reviewer Agent, Multi-Agent Orchestrator), real search & web content extraction tools (`SearchTool` via Exa, `ContentTool` via Firecrawl), universal tool registration (`ToolRegistry`), deterministic report exports (Markdown `.md` and PDF `.pdf`), and routing for the **Desearch AI** research workbench.
 
 ---
 
@@ -28,50 +28,62 @@ AI Agent Pipeline (Planner -> Research -> Writer -> Reviewer)
 Universal Tool Registry (app/tools/registry.py)
          │
          ▼
-Tool Execution Capabilities (web_search, web_fetch, ...)
+Production Tool Providers
+  ├─ SearchTool  -> ExaProvider      -> Exa API (https://api.exa.ai)
+  └─ ContentTool -> FirecrawlProvider -> Firecrawl API (https://api.firecrawl.dev)
 ```
 
 - **Rule 1**: AI Agents must **never** call each other directly.
 - **Rule 2**: API endpoints must **never** coordinate multiple agents directly.
 - **Rule 3**: The Orchestrator is the **only** component allowed to sequence and coordinate multi-agent execution flows.
-- **Rule 4 (Writer Agent Boundary)**: The Writer Agent MUST NEVER access `ToolRegistry`, `WebSearchTool`, `WebFetchTool`, `DocumentReaderTool`, or `CitationExtractorTool`. Its ONLY source of truth is the structured `ResearchResult` evidence payload.
+- **Rule 4 (Writer Agent Boundary)**: The Writer Agent MUST NEVER access `ToolRegistry` or search/fetch tools. Its ONLY source of truth is the structured `ResearchResult` evidence payload.
 - **Rule 5 (Reviewer Agent Boundary)**: The Reviewer Agent MUST NEVER access `ToolRegistry`, perform research, or modify the report text. Its ONLY responsibility is quality evaluation and evidence alignment validation.
+- **Rule 6 (Tool Provider Boundary)**: AI Agents MUST NEVER communicate directly with Exa or Firecrawl. Agents request tools ONLY through `ToolRegistry`.
+- **Rule 7 (Export Boundary)**: Report generation and report export are separate responsibilities. Report export is a 100% deterministic formatting operation that MUST NOT invoke LLMs or external search/content APIs.
+
+---
+
+## Report Export Module (`app/export/`)
+
+The **Report Export Service** (`ReportExportService`) formats completed research reports into downloadable Markdown (`.md`) or PDF (`.pdf`) documents.
+
+- **Endpoint**: `GET /api/v1/reports/{session_id}/export?format=markdown` or `format=pdf`
+- **Formatters**:
+  - `MarkdownExportFormatter`: Formats canonical report text into UTF-8 encoded `.md` documents.
+  - `PdfExportFormatter`: Formats report title, executive summary, headings, paragraphs, and citations into professional binary `.pdf` documents using ReportLab.
+- **Persistence**: Persists canonical `ReportResult` data in Supabase `research_sessions` metadata column upon workflow completion.
+
+---
+
+## Real Search & Content Tool Architecture
+
+### 1. Search Tool Module (`app/tools/search/`)
+
+The **Search Tool** (`SearchTool`) executes web search queries via the `ExaProvider` HTTP REST integration (`POST https://api.exa.ai/search`).
+
+- **Provider**: `ExaProvider` (`app/tools/search/provider.py`)
+- **Key Settings**: `EXA_API_KEY`, `EXA_BASE_URL`, `SEARCH_TIMEOUT`
+- **Output Model**: `SearchResult` containing normalized `SearchResultItem` items (`title`, `url`, `snippet`, `published_at`, `score`, `metadata`).
+
+### 2. Content Tool Module (`app/tools/content/`)
+
+The **Content Tool** (`ContentTool`) extracts clean web page content and Markdown via the `FirecrawlProvider` HTTP REST integration (`POST https://api.firecrawl.dev/v1/scrape`).
+
+- **Provider**: `FirecrawlProvider` (`app/tools/content/provider.py`)
+- **Key Settings**: `FIRECRAWL_API_KEY`, `FIRECRAWL_BASE_URL`, `CONTENT_TIMEOUT`
+- **Output Model**: `ExtractedDocument` containing `url`, `title`, `markdown`, `plain_text`, and `metadata`.
 
 ---
 
 ## Reviewer Agent Module
 
-The **Reviewer Agent** (`app/agents/reviewer/`) is the fourth autonomous AI agent in Desearch AI. It evaluates the generated report against the original `PlannerResult` strategy and `ResearchResult` evidence collection.
-
-```text
-backend/app/agents/reviewer/
-├── __init__.py            # Package re-exports
-├── models.py              # ReviewResult domain model
-├── prompts.py             # System prompt for rigorous peer review quality evaluation
-├── reviewer.py            # ReviewerAgent (Evaluates quality & evidence validity via LLMClient)
-├── router.py              # API router (/api/v1/reviewer/review)
-├── schemas.py             # Pydantic v2 schemas (ReviewRunRequest, ReviewResultSchema)
-└── service.py             # ReviewerService validating session & executing evaluation workflow
-```
-
-### Key Responsibilities & Rules
-
-1. **Quality Evaluation Only**: Evaluates report structure, factual accuracy, evidence coverage, and structural completeness. NEVER rewrites or modifies the report text.
-2. **Unsupported Claim Detection**: Identifies claims made in the report that lack backing evidence in `ResearchResult`.
-3. **Approval Determination**: Sets `approved` to `true` ONLY if `overall_score` >= 0.75 and `unsupported_claims` is empty.
-4. **Zero Tool Access**: Does NOT access `ToolRegistry` or perform external research queries.
-
-### API Endpoint (`/api/v1/reviewer/review`)
-
-- **`POST /api/v1/reviewer/review`**:
-  - Request Body: `{"session_id": "<uuid>", "plan": {...}, "research": {...}, "report": {...}}`
-  - Response: Returns `ReviewEnvelope` wrapping `ReviewResultSchema` containing `approved`, `overall_score`, `confidence`, `strengths`, `issues`, `missing_evidence`, `unsupported_claims`, `recommendations`, and `summary`.
+The **Reviewer Agent** (`app/agents/reviewer/`) evaluates generated reports against the original `PlannerResult` strategy and `ResearchResult` evidence collection.
 
 ---
 
 ## Writer Agent Module
 
-The **Writer Agent** (`app/agents/writer/`) is the third autonomous AI agent in Desearch AI. It receives a `PlannerResult` plan and a structured `ResearchResult` evidence collection, then synthesizes a comprehensive, executive-ready Markdown Research Report.
+The **Writer Agent** (`app/agents/writer/`) receives a `PlannerResult` plan and a structured `ResearchResult` evidence collection, then synthesizes a comprehensive Markdown Research Report.
 
 ---
 
@@ -87,57 +99,19 @@ The **Research Agent** (`app/agents/research/`) receives a `PlannerResult` plan 
 
 ---
 
-## Planner Agent Module
-
-The **Planner Agent** (`app/agents/planner/`) receives a research query from a `ResearchSession` and uses `LLMClient` to construct a structured, multi-step Research Execution Plan.
-
----
-
 ## Universal Tool Registry Module
 
-The **Tool Registry** (`app/tools/`) is the central catalog of every capability available to AI agents. It acts as a metadata directory that tracks tool identities, specifications, input/output JSON schemas, versioning, enabling status, and supported agent roles without performing tool execution.
+The **Tool Registry** (`app/tools/`) is the central catalog of every capability available to AI agents. It acts as a metadata directory that tracks tool identities, specifications, input/output JSON schemas, versioning, enabling status, and supported agent roles.
 
 ---
 
 ## Universal LLM Platform (OpenRouter Integration)
 
-Desearch AI integrates **OpenRouter** (`app/core/llm/`) as its decoupled, universal LLM platform provider using direct HTTP REST calls (`httpx`). Agents communicate exclusively with the normalized `LLMClient` interface and remain completely decoupled from specific LLM providers or vendor SDKs.
-
----
-
-## Supabase Persistence
-
-Desearch AI integrates **Supabase PostgreSQL** as its production persistence layer (`app/sessions/supabase_repository.py`). The domain service layer remains 100% untouched due to the repository abstraction pattern established in Ticket P2-02.
-
----
-
-## Repository Architecture
-
-Desearch AI strictly separates domain business logic from data storage mechanisms using abstract repository interfaces (`app/core/repositories/`). This adheres to SOLID principles (Dependency Inversion), allowing seamless swapping of persistence providers without altering service layer code.
-
----
-
-## Research Session Module
-
-The Research Session domain (`app/sessions/`) manages the complete lifecycle of research queries across 9 states using an in-memory repository pattern or Supabase PostgreSQL persistence, domain service layer, Pydantic schemas, and FastAPI endpoints.
-
----
-
-## Application Container
-
-Desearch AI implements a lightweight service container (`app/core/container.py`) to centralize shared infrastructure singletons without global mutable state or heavy third-party DI frameworks.
-
----
-
-## Dependency Injection Architecture
-
-Dependency Injection in Desearch AI uses FastAPI's native `Depends()` mechanism (`app/dependencies/`). Reusable dependency providers decouple API handlers from infrastructure implementations and enable seamless unit test mocking.
+Desearch AI integrates **OpenRouter** (`app/core/llm/`) as its decoupled, universal LLM platform provider using direct HTTP REST calls (`httpx`).
 
 ---
 
 ## Development Quality Workflow
-
-Desearch AI strictly enforces automated quality control infrastructure across code formatting, linting, static type checking, and Git hooks. All tooling configuration is centralized in `backend/pyproject.toml`.
 
 ### Quality Commands (`backend/Makefile`)
 

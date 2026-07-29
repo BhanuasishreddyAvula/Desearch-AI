@@ -11,6 +11,7 @@ from app.core.settings import (
     RedisSettings,
     SecuritySettings,
     SupabaseSettings,
+    ToolsSettings,
 )
 
 
@@ -32,6 +33,7 @@ class Settings(BaseSettings):
     observability: ObservabilitySettings = Field(
         default_factory=ObservabilitySettings
     )
+    tools: ToolsSettings = Field(default_factory=ToolsSettings)
 
     # --------------------------------------------------------------------------
     # Flat Public Accessors — Application Settings
@@ -170,6 +172,41 @@ class Settings(BaseSettings):
     @property
     def ENABLE_TRACING(self) -> bool:
         return self.observability.ENABLE_TRACING
+
+    # --------------------------------------------------------------------------
+    # Flat Public Accessors — Tools Settings
+    # --------------------------------------------------------------------------
+    @property
+    def EXA_API_KEY(self) -> str:
+        return self.tools.EXA_API_KEY
+
+    @property
+    def FIRECRAWL_API_KEY(self) -> str:
+        return self.tools.FIRECRAWL_API_KEY
+
+    @property
+    def EXA_BASE_URL(self) -> str:
+        return self.tools.EXA_BASE_URL
+
+    @property
+    def FIRECRAWL_BASE_URL(self) -> str:
+        return self.tools.FIRECRAWL_BASE_URL
+
+    @property
+    def SEARCH_TIMEOUT(self) -> float:
+        return self.tools.SEARCH_TIMEOUT
+
+    @property
+    def CONTENT_TIMEOUT(self) -> float:
+        return self.tools.CONTENT_TIMEOUT
+
+    @property
+    def RESEARCH_MAX_SOURCE_CHARS(self) -> int:
+        return self.tools.RESEARCH_MAX_SOURCE_CHARS
+
+    @property
+    def RESEARCH_MAX_TOTAL_CHARS(self) -> int:
+        return self.tools.RESEARCH_MAX_TOTAL_CHARS
 
 
 settings = Settings()
