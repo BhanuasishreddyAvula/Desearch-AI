@@ -11,6 +11,8 @@ class SecuritySettings(BaseSettings):
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
     ]
     API_KEY_SECRET: str = "change_this_api_key_secret_in_production"
 

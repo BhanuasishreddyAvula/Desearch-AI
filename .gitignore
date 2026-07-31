@@ -160,6 +160,7 @@ $RECYCLE.BIN/
 tmp/
 temp/
 scratch/
+.agent/
 .mypy_cache/
 .ruff_cache/
 *.tmp

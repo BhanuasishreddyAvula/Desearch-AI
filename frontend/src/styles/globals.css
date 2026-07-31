@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 30 5% 8%;         /* #141312 - warm near-black canvas */
+    --sidebar: 30 5% 10%;           /* #1A1917 - differentiated dark sidebar */
+    --surface: 30 5% 13%;           /* #22201D - dark surface */
+    --surface-elevated: 30 5% 16%;  /* #292723 - dark elevated surface */
+    --surface-hover: 30 5% 18%;     /* #2E2C28 - hover state */
+    
+    --foreground: 38 30% 97%;       /* #FBF9F5 - warm off-white text */
+    --muted-foreground: 38 8% 60%;  /* #A39E93 - muted warm-gray secondary text */
+    --text-muted: 38 6% 45%;        /* #78736A - soft muted text */
+    
+    --border: 40 6% 17%;            /* #2E2C28 - warm border */
+    --border-subtle: 40 6% 14%;     /* #262420 - subtle warm border */
+    
+    --accent: 11 68% 53%;           /* #D95338 - terracotta coral primary accent */
+    --accent-hover: 11 65% 45%;     /* #BC4128 - deep terracotta hover */
+    --accent-foreground: 0 0% 100%; /* #FFFFFF - text on accent */
+    --accent-subtle: 11 40% 16%;    /* #2B1814 - subtle coral background tint */
+    
+    --destructive: 0 72% 51%;       /* #DC2626 - crimson error */
+    --destructive-foreground: 0 0% 100%;
+    
+    --focus-ring: 11 68% 53%;
+    --radius: 0.5rem;               /* 8px radius */
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  .font-serif-editorial {
+    font-family: 'EB Garamond', Georgia, serif;
+  }
+  .font-sans-ui {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  .font-mono-code {
+    font-family: 'JetBrains Mono', Consolas, monospace;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
