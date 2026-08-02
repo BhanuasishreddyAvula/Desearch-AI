@@ -1,7 +1,8 @@
 """Supabase PostgreSQL implementation of AbstractSessionRepository."""
 
 from datetime import datetime, timezone
-from typing import Any
+import time
+from typing import Any, Callable, TypeVar
 
 from app.core.database import get_supabase_client
 from app.core.exceptions import AppException
@@ -11,6 +12,27 @@ from app.sessions.enums import SessionStatus
 from app.sessions.models import ResearchSession
 
 logger = get_app_logger("sessions.supabase_repository")
+
+T = TypeVar("T")
+
+
+def _execute_with_retry(operation: Callable[[], T], max_retries: int = 3) -> T:
+    """Execute a Supabase database query with automatic retry for transient network drops."""
+    for attempt in range(1, max_retries + 1):
+        try:
+            return operation()
+        except Exception as exc:
+            err_msg = str(exc)
+            if ("getaddrinfo failed" in err_msg or "ConnectError" in err_msg or "ConnectionRefused" in err_msg) and attempt < max_retries:
+                logger.warning(
+                    "Supabase connection dropped (%s). Retrying attempt %d/%d...",
+                    err_msg,
+                    attempt + 1,
+                    max_retries,
+                )
+                time.sleep(0.5 * attempt)
+                continue
+            raise
 
 
 class SupabaseSessionRepository(AbstractSessionRepository):
@@ -28,8 +50,8 @@ class SupabaseSessionRepository(AbstractSessionRepository):
         """Insert a new research session row into Supabase."""
         try:
             payload = self._entity_to_row(entity)
-            response = (
-                self.client.table(self.table_name).insert(payload).execute()
+            response = _execute_with_retry(
+                lambda: self.client.table(self.table_name).insert(payload).execute()
             )
             if not response.data:
                 raise AppException(
@@ -49,8 +71,8 @@ class SupabaseSessionRepository(AbstractSessionRepository):
     def get_by_id(self, id_val: str) -> ResearchSession | None:
         """Fetch a research session by UUID primary key from Supabase."""
         try:
-            response = (
-                self.client.table(self.table_name)
+            response = _execute_with_retry(
+                lambda: self.client.table(self.table_name)
                 .select("*")
                 .eq("id", id_val)
                 .execute()
@@ -66,12 +88,12 @@ class SupabaseSessionRepository(AbstractSessionRepository):
             ) from exc
 
     def list_all(self) -> list[ResearchSession]:
-        """Fetch all research sessions ordered by created_at DESC."""
+        """Fetch all research sessions ordered by updated_at DESC (no device filter)."""
         try:
-            response = (
-                self.client.table(self.table_name)
+            response = _execute_with_retry(
+                lambda: self.client.table(self.table_name)
                 .select("*")
-                .order("created_at", desc=True)
+                .order("updated_at", desc=True)
                 .execute()
             )
             return [self._row_to_entity(row) for row in (response.data or [])]
@@ -82,12 +104,31 @@ class SupabaseSessionRepository(AbstractSessionRepository):
                 error_code="DATABASE_ERROR",
             ) from exc
 
+    def list_by_device(self, device_id: str) -> list[ResearchSession]:
+        """Fetch sessions belonging to the given device UUID (including legacy sessions), ordered by updated_at DESC."""
+        try:
+            nil_uuid = "00000000-0000-0000-0000-000000000000"
+            response = _execute_with_retry(
+                lambda: self.client.table(self.table_name)
+                .select("*")
+                .or_(f"device_id.eq.{device_id},device_id.eq.{nil_uuid}")
+                .order("updated_at", desc=True)
+                .execute()
+            )
+            return [self._row_to_entity(row) for row in (response.data or [])]
+        except Exception as exc:
+            logger.exception("Supabase list_by_device failed: %s", str(exc))
+            raise AppException(
+                message=f"Database error listing device sessions: {str(exc)}",
+                error_code="DATABASE_ERROR",
+            ) from exc
+
     def update(self, entity: ResearchSession) -> ResearchSession:
         """Update an existing research session row in Supabase."""
         try:
             payload = self._entity_to_row(entity)
-            response = (
-                self.client.table(self.table_name)
+            response = _execute_with_retry(
+                lambda: self.client.table(self.table_name)
                 .update(payload)
                 .eq("id", entity.id)
                 .execute()
@@ -110,8 +151,8 @@ class SupabaseSessionRepository(AbstractSessionRepository):
     def delete(self, id_val: str) -> bool:
         """Delete a research session row by UUID from Supabase."""
         try:
-            response = (
-                self.client.table(self.table_name)
+            response = _execute_with_retry(
+                lambda: self.client.table(self.table_name)
                 .delete()
                 .eq("id", id_val)
                 .execute()
@@ -142,6 +183,7 @@ class SupabaseSessionRepository(AbstractSessionRepository):
             title=str(row["title"]),
             query=str(row["query"]),
             status=SessionStatus(row["status"]),
+            device_id=str(row.get("device_id") or ""),
             created_at=created_at,
             updated_at=updated_at,
             metadata=row.get("metadata") or {},
@@ -155,6 +197,7 @@ class SupabaseSessionRepository(AbstractSessionRepository):
             "title": entity.title,
             "query": entity.query,
             "status": entity.status.value,
+            "device_id": entity.device_id,
             "metadata": entity.metadata,
             "created_at": entity.created_at.astimezone(timezone.utc).isoformat(),
             "updated_at": entity.updated_at.astimezone(timezone.utc).isoformat(),

@@ -17,6 +17,14 @@ class WorkflowRunRequest(BaseModel):
     query: str = Field(..., description="Primary research objective query")
 
 
+class WorkflowCancelRequest(BaseModel):
+    """Request payload for cancelling a running workflow."""
+
+    session_id: str = Field(..., description="UUID identifier of the session to cancel")
+
+
+
+
 class AgentExecutionSchema(BaseModel):
     """Schema representing an individual agent execution run in the workflow."""
 

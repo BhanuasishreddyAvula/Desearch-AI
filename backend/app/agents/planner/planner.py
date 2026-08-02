@@ -21,14 +21,14 @@ class PlannerAgent:
     def __init__(self, llm_client: LLMClient) -> None:
         self.llm_client = llm_client
 
-    def generate_plan(self, query: str) -> PlannerResult:
+    def generate_plan(self, query: str, conversation_context: str = "") -> PlannerResult:
         """Formulate a research plan by sending prompts to the decoupled LLMClient."""
         logger.event(
             SystemEvents.AGENT_STARTED,
             f"Planner Agent starting plan generation for query: '{query[:60]}...'",
         )
 
-        prompt = build_planner_user_prompt(query)
+        prompt = build_planner_user_prompt(query, conversation_context=conversation_context)
 
         # Execute normalized chat completion request via LLMClient
         response = self.llm_client.generate_chat_completion(
@@ -60,16 +60,30 @@ class PlannerAgent:
 
             data = json.loads(cleaned_json)
 
-            tasks = [
-                TaskModel(
-                    id=str(t.get("id", f"task_{idx+1}")),
-                    title=str(t.get("title", f"Task {idx+1}")),
-                    description=str(t.get("description", "")),
-                    priority=str(t.get("priority", "medium")),
-                    reason=str(t.get("reason", "")),
-                )
-                for idx, t in enumerate(data.get("tasks", []))
-            ]
+            raw_tasks = data.get("tasks", [])
+            tasks = []
+            for idx, t in enumerate(raw_tasks):
+                if isinstance(t, str):
+                    tasks.append(
+                        TaskModel(
+                            id=f"task_{idx+1}",
+                            title=f"Task {idx+1}",
+                            description=t,
+                            priority="medium",
+                            reason="Planned step",
+                        )
+                    )
+                elif isinstance(t, dict):
+                    tasks.append(
+                        TaskModel(
+                            id=str(t.get("id", f"task_{idx+1}")),
+                            title=str(t.get("title", f"Task {idx+1}")),
+                            description=str(t.get("description", "")),
+                            priority=str(t.get("priority", "medium")),
+                            reason=str(t.get("reason", "")),
+                        )
+                    )
+
 
             return PlannerResult(
                 goal=str(data.get("goal", query)),

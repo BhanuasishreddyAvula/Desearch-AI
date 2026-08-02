@@ -17,12 +17,16 @@ class PlannerService:
         self.session_repository = session_repository
         self.planner_agent = planner_agent
 
-    def create_plan(self, session_id: str) -> PlannerResult:
-        """Retrieve session from repository and generate structured execution plan."""
+    def create_plan(
+        self, session_id: str, query: str | None = None, conversation_context: str = ""
+    ) -> PlannerResult:
+        """Retrieve session from repository and generate structured execution plan for current query."""
         session = self.session_repository.get_by_id(session_id)
         if not session:
             raise ResourceNotFoundException(
                 message=f"Research session '{session_id}' was not found"
             )
 
-        return self.planner_agent.generate_plan(session.query)
+        target_query = query.strip() if (query and query.strip()) else session.query
+        return self.planner_agent.generate_plan(target_query, conversation_context=conversation_context)
+

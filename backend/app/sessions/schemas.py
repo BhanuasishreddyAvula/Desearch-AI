@@ -46,6 +46,7 @@ class SessionResponse(BaseModel):
     title: str = Field(..., description="Session title")
     query: str = Field(..., description="Original research query")
     status: SessionStatus = Field(..., description="Current lifecycle state")
+    device_id: str = Field(default="", description="Owning device UUID")
     created_at: datetime = Field(..., description="Session creation timestamp")
     updated_at: datetime = Field(..., description="Last updated timestamp")
     metadata: dict[str, Any] = Field(

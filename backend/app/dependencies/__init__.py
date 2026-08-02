@@ -7,6 +7,7 @@ from app.dependencies.common import (
 )
 from app.dependencies.providers import (
     get_container,
+    get_conversation_repository_dep,
     get_llm_client_dep,
     get_logger_dep,
     get_metrics_dep,
@@ -26,6 +27,8 @@ __all__ = [
     "get_tracer_dep",
     "get_metrics_dep",
     "get_session_repository_dep",
+    "get_conversation_repository_dep",
     "get_llm_client_dep",
     "get_tool_registry_dep",
 ]
+

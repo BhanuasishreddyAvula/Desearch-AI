@@ -1,5 +1,6 @@
 """Infrastructure dependency providers for FastAPI endpoints."""
 
+from app.conversations.repository import AbstractConversationRepository
 from app.core.config import Settings, settings
 from app.core.container import Container, container
 from app.core.llm.client import LLMClient
@@ -38,6 +39,11 @@ def get_metrics_dep() -> MetricsCollector:
 def get_session_repository_dep() -> AbstractSessionRepository:
     """Dependency provider returning the active session repository interface implementation."""
     return container.session_repository
+
+
+def get_conversation_repository_dep() -> AbstractConversationRepository:
+    """Dependency provider returning the active conversation message repository."""
+    return container.conversation_repository
 
 
 def get_llm_client_dep() -> LLMClient:

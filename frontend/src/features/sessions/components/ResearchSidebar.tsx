@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, PanelLeftClose, PanelLeftOpen, Compass } from 'lucide-react';
+import { PanelLeft, SquarePen } from 'lucide-react';
 import { cn } from '../../../lib/utils/cn';
 import { SessionList } from './SessionList';
+
 
 export const ResearchSidebar: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -20,72 +21,79 @@ export const ResearchSidebar: React.FC = () => {
     <aside
       aria-label="Research navigation sidebar"
       className={cn(
-        'bg-sidebar border-r border-border flex flex-col h-full font-sans-ui transition-all duration-200 ease-in-out shrink-0 select-none',
-        isCollapsed ? 'w-16' : 'w-64'
+        'bg-sidebar border-r border-border flex flex-col h-full font-sans-ui shrink-0 select-none overflow-hidden transition-[width] duration-240 ease-[cubic-bezier(0.4,0,0.2,1)]',
+        isCollapsed ? 'w-[52px]' : 'w-64'
       )}
     >
-      {/* Brand & Collapse Header */}
-      <div className="h-14 px-4 border-b border-border-subtle flex items-center justify-between">
-        {!isCollapsed ? (
-          <>
-            <div className="flex items-center gap-2">
-              <Compass className="w-5 h-5 text-accent shrink-0" />
-              <span className="font-serif-editorial font-bold text-lg text-foreground tracking-tight">
-                Desearch AI
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={toggleCollapse}
-              aria-label="Collapse sidebar"
-              title="Collapse sidebar"
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-focus-ring"
-            >
-              <PanelLeftClose className="w-4 h-4" />
-            </button>
-          </>
-        ) : (
-          <div className="w-full flex items-center justify-between px-0.5">
-            <Compass className="w-5 h-5 text-accent shrink-0" />
-            <button
-              type="button"
-              onClick={toggleCollapse}
-              aria-label="Expand sidebar"
-              title="Expand sidebar"
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-focus-ring"
-            >
-              <PanelLeftOpen className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Primary + New Research CTA Button */}
-      <div className="p-3">
-        <button
-          type="button"
-          onClick={handleNewResearch}
-          aria-label="Start new research"
-          title="Start new research"
+      {/* Sidebar Header */}
+      <div className={cn(
+        'h-14 border-b border-border-subtle/50 flex items-center justify-between overflow-hidden transition-all duration-240',
+        isCollapsed ? 'px-2' : 'px-3'
+      )}>
+        {/* Brand Container */}
+        <div
           className={cn(
-            'w-full flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-accent-foreground font-medium py-2 rounded-md transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-focus-ring text-xs',
-            isCollapsed ? 'px-2' : 'px-3'
+            'flex items-center whitespace-nowrap overflow-hidden transition-all duration-200 ease-out',
+            isCollapsed ? 'max-w-0 opacity-0 pointer-events-none' : 'max-w-[180px] opacity-100'
           )}
         >
-          <Plus className="w-4 h-4 shrink-0" />
-          {!isCollapsed && <span>+ New Research</span>}
+          <span className="font-serif-editorial font-bold text-xl text-white tracking-tight truncate">
+            Desearch AI
+          </span>
+        </div>
+
+
+        {/* Sidebar Toggle Button */}
+        <button
+          type="button"
+          onClick={toggleCollapse}
+          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          className={cn(
+            'w-8 h-8 flex items-center justify-center rounded-lg text-white hover:bg-surface-hover active:bg-surface-elevated active:scale-[0.98] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring shrink-0',
+            isCollapsed && 'mx-auto'
+          )}
+        >
+          <PanelLeft className="w-4 h-4 text-white" />
         </button>
       </div>
 
-      {/* Session History Section — Expanded Only */}
-      {!isCollapsed && (
-        <nav aria-label="Recent research sessions" className="flex-1 overflow-y-auto px-3 py-2">
-          <h2 className="text-[10px] uppercase font-semibold text-text-muted tracking-wider px-2 mb-2">
-            Recent Research
-          </h2>
-          <SessionList isCollapsed={false} />
-        </nav>
-      )}
+      {/* New Research Action (Slim Stable Anchor Layout) */}
+      <div className={cn('transition-all duration-240', isCollapsed ? 'px-[9px] py-3' : 'px-3 py-3')}>
+        <button
+          type="button"
+          onClick={handleNewResearch}
+          aria-label="New Research"
+          title="New Research"
+          className="w-full flex items-center h-9 px-1.5 rounded-lg text-white hover:bg-surface-hover active:bg-surface-elevated active:scale-[0.98] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring text-sm font-medium overflow-hidden"
+        >
+          {/* Icon Slot: Fixed X-coordinate anchor centered in 52px rail */}
+          <div className="w-5 h-5 flex items-center justify-center shrink-0 text-white">
+            <SquarePen className="w-4 h-4 text-white" />
+          </div>
+
+          {/* Label Slot: Smooth horizontal reveal/hide without shifting icon */}
+          <span
+            className={cn(
+              'whitespace-nowrap transition-all duration-200 ease-out overflow-hidden text-foreground/90 font-medium',
+              isCollapsed ? 'max-w-0 opacity-0 ml-0 pointer-events-none' : 'max-w-[160px] opacity-100 ml-2.5'
+            )}
+          >
+            New Research
+          </span>
+        </button>
+      </div>
+
+      {/* Session History Section */}
+      <nav
+        aria-label="Recent research sessions"
+        className={cn(
+          'flex-1 overflow-y-auto px-3 py-2 transition-opacity duration-200',
+          isCollapsed ? 'opacity-0 pointer-events-none hidden' : 'opacity-100'
+        )}
+      >
+        <SessionList isCollapsed={isCollapsed} />
+      </nav>
     </aside>
   );
 };

@@ -188,24 +188,39 @@ class ResearchAgent:
 
             raw_items = data.get("evidence_items", [])
             for idx, item in enumerate(raw_items):
+                if isinstance(item, str):
+                    item_dict = {
+                        "id": f"ev_{idx+1}",
+                        "title": f"Evidence {idx+1}",
+                        "summary": item,
+                        "source": sources_consulted[0] if sources_consulted else "https://exa.ai",
+                    }
+                elif isinstance(item, dict):
+                    item_dict = item
+                else:
+                    continue
+
                 ev = Evidence(
-                    id=str(item.get("id", f"ev_{idx+1}")),
-                    title=str(item.get("title", f"Evidence {idx+1}")),
-                    summary=str(item.get("summary", "")),
+                    id=str(item_dict.get("id", f"ev_{idx+1}")),
+                    title=str(item_dict.get("title", f"Evidence {idx+1}")),
+                    summary=str(item_dict.get("summary", "")),
                     source=str(
-                        item.get(
+                        item_dict.get(
                             "source",
                             sources_consulted[0]
                             if sources_consulted
                             else "https://exa.ai",
                         )
                     ),
-                    tool_used=str(item.get("tool_used", "web_search")),
-                    confidence=float(item.get("confidence", 0.85)),
-                    metadata=dict(item.get("metadata", {})),
+                    tool_used=str(item_dict.get("tool_used", "web_search")),
+                    confidence=float(item_dict.get("confidence", 0.85)),
+                    metadata=dict(item_dict.get("metadata", {}))
+                    if isinstance(item_dict.get("metadata"), dict)
+                    else {},
                 )
                 collection.add(ev)
                 logger.info("Evidence Added | ID: %s | Source: %s", ev.id, ev.source)
+
 
             res_sources = list(data.get("sources_consulted", [])) or sources_consulted
             res_tools = list(data.get("tools_executed", [])) or tools_executed

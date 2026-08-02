@@ -6,29 +6,29 @@
 
 @layer base {
   :root {
-    --background: 30 5% 8%;         /* #141312 - warm near-black canvas */
-    --sidebar: 30 5% 10%;           /* #1A1917 - differentiated dark sidebar */
-    --surface: 30 5% 13%;           /* #22201D - dark surface */
-    --surface-elevated: 30 5% 16%;  /* #292723 - dark elevated surface */
-    --surface-hover: 30 5% 18%;     /* #2E2C28 - hover state */
+    --background: 30 3% 7%;          /* #121110 - pitch dark canvas */
+    --sidebar: 30 4% 10%;            /* #1B1A19 - dark sidebar */
+    --surface: 30 4% 13%;            /* #22201E - dark surface */
+    --surface-elevated: 30 4% 16%;   /* #292724 - dark elevated surface */
+    --surface-hover: 30 4% 18%;      /* #2E2C29 - hover state */
     
-    --foreground: 38 30% 97%;       /* #FBF9F5 - warm off-white text */
-    --muted-foreground: 38 8% 60%;  /* #A39E93 - muted warm-gray secondary text */
-    --text-muted: 38 6% 45%;        /* #78736A - soft muted text */
+    --foreground: 38 30% 97%;        /* #FBF9F5 - warm white text */
+    --muted-foreground: 38 6% 62%;   /* #9D9890 - muted warm-gray text */
+    --text-muted: 38 5% 45%;         /* #76726B - soft muted text */
     
-    --border: 40 6% 17%;            /* #2E2C28 - warm border */
-    --border-subtle: 40 6% 14%;     /* #262420 - subtle warm border */
+    --border: 40 5% 17%;             /* #2D2B28 - warm border */
+    --border-subtle: 40 5% 14%;      /* #252321 - subtle warm border */
     
-    --accent: 11 68% 53%;           /* #D95338 - terracotta coral primary accent */
-    --accent-hover: 11 65% 45%;     /* #BC4128 - deep terracotta hover */
-    --accent-foreground: 0 0% 100%; /* #FFFFFF - text on accent */
-    --accent-subtle: 11 40% 16%;    /* #2B1814 - subtle coral background tint */
+    --accent: 11 72% 55%;            /* #DF573C - vibrant terracotta coral */
+    --accent-hover: 11 70% 48%;      /* #C6462C - deep terracotta hover */
+    --accent-foreground: 0 0% 100%;  /* #FFFFFF - text on accent */
+    --accent-subtle: 11 40% 16%;     /* #2B1814 - subtle coral background tint */
     
-    --destructive: 0 72% 51%;       /* #DC2626 - crimson error */
+    --destructive: 0 72% 51%;        /* #DC2626 - crimson error */
     --destructive-foreground: 0 0% 100%;
     
-    --focus-ring: 11 68% 53%;
-    --radius: 0.5rem;               /* 8px radius */
+    --focus-ring: 11 72% 55%;
+    --radius: 0.5rem;                /* 8px radius */
   }
 
   body {
@@ -37,6 +37,30 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Universal Ultra-Thin Dark Theme Scrollbar (Scrolling Thread) */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.32);
   }
 }
 
@@ -50,6 +74,89 @@
   .font-mono-code {
     font-family: 'JetBrains Mono', Consolas, monospace;
   }
+
+  /* Motion Tokens (P3-09 System) */
+  .duration-fast { animation-duration: 120ms; transition-duration: 120ms; }
+  .duration-medium { animation-duration: 180ms; transition-duration: 180ms; }
+  .duration-standard { animation-duration: 220ms; transition-duration: 220ms; }
+  .duration-slow { animation-duration: 280ms; transition-duration: 280ms; }
+
+  /* Reusable Dropdown & Popover Motion System */
+  @keyframes popoverIn {
+    from {
+      opacity: 0;
+      transform: scale(0.98) translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  .animate-popover-in {
+    animation: popoverIn 180ms cubic-bezier(0, 0, 0.2, 1) forwards;
+  }
+
+  /* Streaming Paragraph Motion */
+  @keyframes paragraphIn {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-paragraph-in {
+    animation: paragraphIn 120ms cubic-bezier(0, 0, 0.2, 1) forwards;
+  }
+
+  /* Workflow Phase Text Light Glow Sweep (Left to Right) */
+  @keyframes stageShimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  .animate-shimmer-stage {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.45) 0%,
+      rgba(255, 255, 255, 1) 50%,
+      rgba(255, 255, 255, 0.45) 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: stageShimmer 2.2s ease-in-out infinite;
+  }
+
+
+  /* Medium Intensity Skeleton Shimmer (No Pulse, Single Speed) */
+  @keyframes subtleShimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .animate-skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 255, 255, 0.12) 50%,
+      rgba(255, 255, 255, 0.04) 100%
+    );
+    background-size: 200% 100%;
+    animation: subtleShimmer 2.2s ease-in-out infinite;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -58,5 +165,17 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  .animate-shimmer-stage,
+  .animate-skeleton-shimmer,
+  .animate-popover-in,
+  .animate-paragraph-in {
+    animation: none !important;
+    transform: none !important;
+    background: none !important;
+    -webkit-background-clip: border-box !important;
+    -webkit-text-fill-color: currentColor !important;
+    color: #FBF9F5 !important;
   }
 }

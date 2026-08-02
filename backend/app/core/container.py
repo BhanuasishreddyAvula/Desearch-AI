@@ -1,5 +1,7 @@
 """Application service container centralizing shared singleton infrastructure objects."""
 
+from app.conversations.repository import AbstractConversationRepository
+from app.conversations.supabase_repository import SupabaseConversationRepository
 from app.core.config import Settings, settings
 from app.core.llm.client import LLMClient
 from app.core.repositories.session import AbstractSessionRepository
@@ -29,11 +31,15 @@ class Container:
             self.session_repository: AbstractSessionRepository = (
                 SupabaseSessionRepository()
             )
+            self.conversation_repository: AbstractConversationRepository = (
+                SupabaseConversationRepository()
+            )
             self.logger.info(
-                "Initialized SupabaseSessionRepository as active session repository"
+                "Initialized SupabaseSessionRepository + SupabaseConversationRepository"
             )
         else:
             self.session_repository = InMemorySessionRepository()
+            self.conversation_repository = SupabaseConversationRepository()  # Fallback still uses Supabase for conv
             self.logger.info(
                 "Initialized InMemorySessionRepository as fallback session repository"
             )

@@ -29,6 +29,7 @@ class WriterAgent:
         session_id: str,
         planner_result: PlannerResult,
         research_result: ResearchResult,
+        conversation_context: str = "",
     ) -> ReportResult:
         """Synthesize Planner and Research results into a structured ReportResult."""
         logger.event(
@@ -45,7 +46,9 @@ class WriterAgent:
             planner_summary=planner_result.summary,
             evidence_items=evidence_payloads,
             sources=research_result.sources_consulted,
+            conversation_context=conversation_context,
         )
+
         logger.info("Prompt Created | Session: %s", session_id)
 
         logger.info("LLM Started | Writer Agent calling LLMClient")
@@ -91,14 +94,26 @@ class WriterAgent:
         try:
             data = json.loads(cleaned_json)
 
-            sections = [
-                ReportSection(
-                    title=str(sec.get("title", f"Section {idx+1}")),
-                    content=str(sec.get("content", "")),
-                    level=int(sec.get("level", 2)),
-                )
-                for idx, sec in enumerate(data.get("sections", []))
-            ]
+            raw_sections = data.get("sections", [])
+            sections = []
+            for idx, sec in enumerate(raw_sections):
+                if isinstance(sec, dict):
+                    sections.append(
+                        ReportSection(
+                            title=str(sec.get("title", f"Section {idx+1}")),
+                            content=str(sec.get("content", "")),
+                            level=int(sec.get("level", 2)),
+                        )
+                    )
+                elif isinstance(sec, str):
+                    sections.append(
+                        ReportSection(
+                            title=f"Section {idx+1}",
+                            content=sec,
+                            level=2,
+                        )
+                    )
+
 
             full_markdown = str(data.get("full_markdown", ""))
             if not full_markdown and sections:
@@ -110,10 +125,20 @@ class WriterAgent:
                     )
                 )
 
-            sources_cited = (
-                list(data.get("sources_cited", []))
-                or research_result.sources_consulted
-            )
+            raw_llm_sources = list(data.get("sources_cited", []))
+            all_consulted = research_result.sources_consulted or []
+            
+            # Combine LLM cited sources + all consulted research sources (deduplicated)
+            combined_sources: list[str] = []
+            seen_sources: set[str] = set()
+            for src in raw_llm_sources + all_consulted:
+                src_str = str(src).strip()
+                if src_str and src_str not in seen_sources:
+                    seen_sources.add(src_str)
+                    combined_sources.append(src_str)
+
+            sources_cited = combined_sources or all_consulted
+
             word_count = len(full_markdown.split())
 
             metadata = ReportMetadata(

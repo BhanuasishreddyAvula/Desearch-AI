@@ -12,6 +12,7 @@ CRITICAL CONSTRAINTS & RULES:
 4. Each task must have a clear objective, title, description, priority (high/medium/low), and rationale.
 5. Identify any missing information or critical ambiguities. If the query is ambiguous, set `clarification_required` to true and provide clear `clarification_questions`.
 6. Output MUST be valid JSON strictly matching the requested JSON schema.
+7. CONVERSATION CONTINUITY: When prior conversation context is provided, understand that the user's current question builds on previous turns. Plan research tasks accordingly — do NOT re-research already-established context, instead focus on what is NEW in the current question.
 
 JSON RESPONSE FORMAT REQUIREMENTS:
 Return a JSON object with EXACTLY the following structure:
@@ -37,10 +38,19 @@ Return a JSON object with EXACTLY the following structure:
 """
 
 
-def build_planner_user_prompt(query: str) -> str:
-    """Format user research query for Planner LLM input."""
+def build_planner_user_prompt(query: str, conversation_context: str = "") -> str:
+    """Format user research query for Planner LLM input, with optional conversation context."""
+    context_block = ""
+    if conversation_context.strip():
+        context_block = (
+            f"\nCONVERSATION HISTORY (use this to understand the ongoing research thread):\n"
+            f"{conversation_context}\n\n"
+        )
+
     return (
+        f"{context_block}"
         "Deconstruct the following research query and generate a structured"
         " Research Execution Plan in valid JSON format:\n\nRESEARCH"
         f' QUERY:\n"{query}"\n'
     )
+

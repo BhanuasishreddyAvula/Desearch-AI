@@ -24,6 +24,7 @@ class WriterService:
         session_id: str,
         plan: PlannerResult,
         research: ResearchResult,
+        conversation_context: str = "",
     ) -> ReportResult:
         """Validate research session and execute WriterAgent report synthesis."""
         session = self.session_repository.get_by_id(session_id)
@@ -36,4 +37,6 @@ class WriterService:
             session_id=session_id,
             planner_result=plan,
             research_result=research,
+            conversation_context=conversation_context,
         )
+

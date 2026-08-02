@@ -4,8 +4,8 @@ import asyncio
 from collections.abc import AsyncGenerator
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, Header
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.agents.planner.router import get_planner_service
 from app.agents.planner.schemas import PlannerResultSchema, TaskSchema
@@ -23,23 +23,27 @@ from app.agents.writer.schemas import (
     ReportSectionSchema,
 )
 from app.agents.writer.service import WriterService
+from app.conversations.repository import AbstractConversationRepository
 from app.core.config import settings
 from app.core.repositories.session import AbstractSessionRepository
 from app.dependencies import (
+    get_conversation_repository_dep,
     get_execution_time_dep,
     get_request_id_dep,
     get_session_repository_dep,
 )
 from app.observability.logger import get_app_logger
+from app.orchestrator import cancel_registry
 from app.orchestrator.events import (
     ProgressEvent,
     ProgressEventType,
     ProgressStreamListener,
     create_progress_event,
 )
-from app.orchestrator.orchestrator import MultiAgentOrchestrator
+from app.orchestrator.orchestrator import MultiAgentOrchestrator, WorkflowCancelledError
 from app.orchestrator.schemas import (
     AgentExecutionSchema,
+    WorkflowCancelRequest,
     WorkflowEnvelope,
     WorkflowResultSchema,
     WorkflowRunRequest,
@@ -77,10 +81,15 @@ def get_orchestrator_service(
     orchestrator: Annotated[
         MultiAgentOrchestrator, Depends(get_multi_agent_orchestrator)
     ],
+    conversation_repo: Annotated[
+        AbstractConversationRepository, Depends(get_conversation_repository_dep)
+    ],
 ) -> OrchestratorService:
     """Dependency provider creating OrchestratorService instance."""
     return OrchestratorService(
-        session_repository=session_repo, orchestrator=orchestrator
+        session_repository=session_repo,
+        orchestrator=orchestrator,
+        conversation_repository=conversation_repo,
     )
 
 
@@ -95,9 +104,10 @@ async def run_workflow(
     service: Annotated[OrchestratorService, Depends(get_orchestrator_service)],
     request_id: Annotated[str | None, Depends(get_request_id_dep)],
     execution_time_ms: Annotated[float, Depends(get_execution_time_dep)],
+    x_device_id: Annotated[str, Header(alias="X-Device-ID")] = "",
 ) -> WorkflowEnvelope:
     """Execute multi-agent workflow endpoint."""
-    result = service.execute_session_workflow(data.session_id, data.query)
+    result = service.execute_session_workflow(data.session_id, data.query, device_id=x_device_id)
 
     planner_tasks = [
         TaskSchema(
@@ -231,6 +241,7 @@ async def run_workflow(
 async def stream_workflow(
     data: WorkflowRunRequest,
     service: Annotated[OrchestratorService, Depends(get_orchestrator_service)],
+    x_device_id: Annotated[str, Header(alias="X-Device-ID")] = "",
 ) -> StreamingResponse:
     """Stream multi-agent research workflow progress using Server-Sent Events (SSE)."""
     loop = asyncio.get_running_loop()
@@ -247,6 +258,7 @@ async def stream_workflow(
                 data.session_id,
                 data.query,
                 listener_guard,
+                x_device_id,
             )
         except Exception as exc:
             if not listener_guard.terminal_emitted:
@@ -286,4 +298,24 @@ async def stream_workflow(
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
         },
+    )
+
+
+@router.post(
+    "/cancel",
+    summary="Cancel Running Agent Workflow for a Session",
+    description="Signal the running multi-agent workflow for a session to stop at the next agent boundary. The backend server keeps running.",
+)
+async def cancel_workflow(
+    data: WorkflowCancelRequest,
+    x_device_id: Annotated[str, Header(alias="X-Device-ID")] = "",
+) -> JSONResponse:
+    """Request cancellation of the currently-running agent workflow for the given session."""
+    cancelled = cancel_registry.request_cancel(data.session_id)
+    if cancelled:
+        logger.info("Cancel requested | Session: %s", data.session_id)
+        return JSONResponse(content={"success": True, "message": "Cancellation requested."})
+    return JSONResponse(
+        status_code=404,
+        content={"success": False, "message": "No active workflow found for this session."},
     )

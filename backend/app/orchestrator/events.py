@@ -114,6 +114,10 @@ class ProgressStreamListener:
         self._terminal_emitted = False
         self._lock = threading.Lock()
 
+    def __call__(self, event: ProgressEvent) -> bool:
+        """Allow instance to be called directly as a listener function (e.g. progress_listener(event))."""
+        return self.emit(event)
+
     @property
     def terminal_emitted(self) -> bool:
         """Return True if a terminal event (workflow.completed or workflow.failed) was emitted."""

@@ -16,6 +16,8 @@ class ResearchSession:
     title: str = ""
     query: str = ""
     status: SessionStatus = SessionStatus.DRAFT
+    device_id: str = ""  # Anonymous device identity for session ownership isolation
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     metadata: dict[str, Any] = field(default_factory=dict)
+

@@ -11,7 +11,16 @@ export interface BaseResponse<T> {
   metadata?: Record<string, unknown>;
 }
 
-export type SessionStatus = 'CREATED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'DRAFT';
+export type SessionStatus =
+  | 'CREATED'
+  | 'PLANNING'
+  | 'RESEARCHING'
+  | 'WRITING'
+  | 'REVIEWING'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'CANCELLED'
+  | 'DRAFT';
 
 export type ProgressEventType =
   | 'workflow.started'
@@ -30,11 +39,14 @@ export type ProgressEventType =
   | 'workflow.failed';
 
 export interface ProgressEvent {
-  session_id: string;
   event_type: ProgressEventType;
+  stage: string;
+  message: string;
+  session_id: string;
+  progress: number;
   timestamp: string;
+  metadata?: Record<string, unknown>;
   step_name?: string;
-  message?: string;
   error_details?: string;
   data?: Record<string, unknown>;
 }
@@ -64,10 +76,12 @@ export interface ReportSource {
 export interface ReportResult {
   session_id: string;
   title: string;
-  summary: string;
+  executive_summary?: string;
   full_markdown: string;
-  sources: ReportSource[];
-  created_at: string;
+  sources_cited?: ReportSource[];
+  sections?: Array<{ title: string; content: string; level: number }>;
+  metadata?: Record<string, unknown>;
+  created_at?: string;
 }
 
 export type ExportFormat = 'pdf' | 'markdown';

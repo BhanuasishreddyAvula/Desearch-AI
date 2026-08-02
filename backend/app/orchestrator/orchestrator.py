@@ -1,6 +1,7 @@
 """Multi-Agent Orchestrator executing sequential agent workflows with progress event emission."""
 
 from collections.abc import Callable
+import threading
 import time
 from typing import Any
 
@@ -23,6 +24,10 @@ from app.orchestrator.workflow import WorkflowStatus, WorkflowStep
 logger = get_app_logger("orchestrator")
 
 
+class WorkflowCancelledError(Exception):
+    """Raised when the user requests cancellation of the running agent workflow."""
+
+
 class MultiAgentOrchestrator:
     """Central orchestrator coordinating sequential AI agent execution."""
 
@@ -43,6 +48,8 @@ class MultiAgentOrchestrator:
         session_id: str,
         query: str,
         progress_listener: Callable[[ProgressEvent], None] | None = None,
+        conversation_context: str = "",
+        cancel_token: threading.Event | None = None,
     ) -> WorkflowResult:
         """Coordinate sequential execution of Planner, Research, Writer, and Reviewer Agents."""
         workflow_start_time = time.perf_counter()
@@ -63,6 +70,12 @@ class MultiAgentOrchestrator:
                 except Exception as exc:
                     logger.warning("Progress listener exception: %s", str(exc))
 
+        def check_cancelled() -> None:
+            """Raise WorkflowCancelledError if the session cancel token is set."""
+            if cancel_token is not None and cancel_token.is_set():
+                logger.info("Workflow Cancelled by user | Session: %s", session_id)
+                raise WorkflowCancelledError(f"Workflow cancelled by user for session {session_id}")
+
         logger.event(
             SystemEvents.APPLICATION_STARTED,
             f"Workflow Started | Session: {session_id} | Query: '{query[:60]}...'",
@@ -78,9 +91,9 @@ class MultiAgentOrchestrator:
 
         try:
             # ------------------------------------------------------------------
-            # Step 1: Execute Planner Agent
+            # Step 1: Execute Planner Agent with current target query
             # ------------------------------------------------------------------
-            logger.info("Planner Started | Session: %s", session_id)
+            logger.info("Planner Started | Session: %s | Query: %s", session_id, query)
             emit(
                 create_progress_event(
                     ProgressEventType.PLANNER_STARTED,
@@ -91,7 +104,9 @@ class MultiAgentOrchestrator:
             )
             planner_start = time.perf_counter()
 
-            planner_result = self.planner_service.create_plan(session_id)
+            planner_result = self.planner_service.create_plan(
+                session_id, query=query, conversation_context=conversation_context
+            )
             planner_duration = (time.perf_counter() - planner_start) * 1000.0
 
             logger.info(
@@ -117,6 +132,9 @@ class MultiAgentOrchestrator:
                     details={"tasks_count": len(planner_result.tasks)},
                 )
             )
+
+            # Check for cancellation before each agent boundary
+            check_cancelled()
 
             # ------------------------------------------------------------------
             # Step 2: Execute Research Agent
@@ -183,6 +201,9 @@ class MultiAgentOrchestrator:
                 )
             )
 
+            # Check for cancellation before each agent boundary
+            check_cancelled()
+
             # ------------------------------------------------------------------
             # Step 3: Execute Writer Agent
             # ------------------------------------------------------------------
@@ -198,7 +219,8 @@ class MultiAgentOrchestrator:
             writer_start = time.perf_counter()
 
             report_result = self.writer_service.create_report(
-                session_id, planner_result, research_result
+                session_id, planner_result, research_result,
+                conversation_context=conversation_context,
             )
             writer_duration = (time.perf_counter() - writer_start) * 1000.0
 
@@ -216,6 +238,8 @@ class MultiAgentOrchestrator:
                     {
                         "word_count": report_result.metadata.word_count,
                         "sections_count": report_result.metadata.sections_count,
+                        "full_markdown": report_result.full_markdown,
+                        "sources_cited": report_result.sources_cited,
                     },
                 )
             )
@@ -231,6 +255,9 @@ class MultiAgentOrchestrator:
                     },
                 )
             )
+
+            # Check for cancellation before each agent boundary
+            check_cancelled()
 
             # ------------------------------------------------------------------
             # Step 4: Execute Reviewer Agent
@@ -303,6 +330,26 @@ class MultiAgentOrchestrator:
                 executions=executions,
                 total_execution_time_ms=total_duration,
             )
+
+        except WorkflowCancelledError:
+            # User-requested stop — emit cancelled event and exit cleanly
+            # The backend server remains fully operational.
+            total_duration = (time.perf_counter() - workflow_start_time) * 1000.0
+            logger.info(
+                "Workflow Cancelled | Session: %s | Elapsed: %.2fms",
+                session_id,
+                total_duration,
+            )
+            emit(
+                create_progress_event(
+                    ProgressEventType.WORKFLOW_FAILED,
+                    "Cancelled",
+                    "Research stopped by user.",
+                    session_id,
+                    {"error": "cancelled_by_user"},
+                )
+            )
+            raise
 
         except Exception as exc:
             total_duration = (

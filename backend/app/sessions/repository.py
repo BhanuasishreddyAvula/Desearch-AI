@@ -24,6 +24,11 @@ class InMemorySessionRepository(AbstractSessionRepository):
         sessions = list(self._storage.values())
         return sorted(sessions, key=lambda s: s.created_at, reverse=True)
 
+    def list_by_device(self, device_id: str) -> list[ResearchSession]:
+        """List sessions belonging to the given device, ordered by updated_at DESC."""
+        sessions = [s for s in self._storage.values() if s.device_id == device_id]
+        return sorted(sessions, key=lambda s: s.updated_at, reverse=True)
+
     def update(self, entity: ResearchSession) -> ResearchSession:
         """Update an existing session entity in memory."""
         self._storage[entity.id] = entity

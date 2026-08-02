@@ -69,9 +69,18 @@ def build_writer_user_prompt(
     planner_summary: str,
     evidence_items: list[dict[str, Any]],
     sources: list[str],
+    conversation_context: str = "",
 ) -> str:
     """Format planner goal and gathered research evidence for Writer LLM input."""
-    return f"""Synthesize a complete, professional Markdown Research Report based ONLY on the following evidence:
+    context_block = ""
+    if conversation_context.strip():
+        context_block = (
+            f"\nCONVERSATION HISTORY (this report continues an ongoing research conversation — "
+            f"maintain continuity with previous turns, avoid repeating what was already covered):\n"
+            f"{conversation_context}\n\n"
+        )
+
+    return f"""{context_block}Synthesize a complete, professional Markdown Research Report based ONLY on the following evidence:
 
 PRIMARY RESEARCH GOAL:
 "{goal}"
@@ -87,3 +96,4 @@ VERIFIED CONSULTED SOURCES:
 
 Generate a complete JSON response containing "title", "executive_summary", "full_markdown", "sections", and "sources_cited".
 """
+
