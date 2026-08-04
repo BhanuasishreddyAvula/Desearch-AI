@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { sessionsApi } from '../../../lib/api/sessions';
-import { conversationsApi } from '../../../lib/api/conversations';
+import { sessionsApi } from '@/lib/api/sessions';
+import { conversationsApi } from '@/lib/api/conversations';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useResearchProgress } from '../hooks/useResearchProgress';
 import { ResearchProgress } from './ResearchProgress';
@@ -10,10 +10,10 @@ import { UserMessageBubble } from './UserMessageBubble';
 import { ResearchComposer } from './ResearchComposer';
 import { ReportSkeleton } from '../../reports';
 import { FollowupResponseItem, FollowupMessagePair } from './FollowupResponseItem';
-import { streamResearchProgress } from '../../../lib/sse/reader';
-import type { SseStreamControl } from '../../../lib/sse/types';
+import { streamResearchProgress } from '@/lib/sse/reader';
+import type { SseStreamControl } from '@/lib/sse/types';
 import { createInitialProgressState, progressReducer } from '../progress/reducer';
-import { extractCleanMarkdown, resolveSourcesForResponse } from '../../../lib/utils/sources';
+import { extractCleanMarkdown, resolveSourcesForResponse } from '@/lib/utils/sources';
 import type { ReportSource } from '../../../types';
 
 
@@ -39,8 +39,8 @@ export const SessionView: React.FC = () => {
     // 1. Signal the backend agents to stop (fire-and-forget, non-blocking)
     if (sessionId) {
       try {
-        const { API_BASE_URL } = await import('../../../lib/api/client');
-        const { getDeviceId } = await import('../../../lib/device');
+        const { API_BASE_URL } = await import('@/lib/api/client');
+        const { getDeviceId } = await import('@/lib/device');
         fetch(`${API_BASE_URL}/api/v1/orchestrator/cancel`, {
           method: 'POST',
           headers: {

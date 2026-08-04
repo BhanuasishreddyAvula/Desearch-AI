@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { EllipsisVertical, Check, X } from 'lucide-react';
-import { cn } from '../../../lib/utils/cn';
+import { cn } from '@/lib/utils/cn';
 import type { ResearchSession } from '../../../types';
 import { useRenameSession } from '../hooks/useRenameSession';
 import { useDeleteSession } from '../hooks/useDeleteSession';

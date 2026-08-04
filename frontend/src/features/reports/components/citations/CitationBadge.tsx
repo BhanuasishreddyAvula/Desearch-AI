@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import type { Source, Evidence } from '../../../../types/citation';
 import { ShieldCheck, ShieldAlert, Globe } from 'lucide-react';
-import { cn } from '../../../../lib/utils/cn';
+import { cn } from '@/lib/utils/cn';
 
 interface CitationBadgeProps {
   citationNumber: number;

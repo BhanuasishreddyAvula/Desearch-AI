@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PanelLeft, SquarePen } from 'lucide-react';
-import { cn } from '../../../lib/utils/cn';
+import { cn } from '@/lib/utils/cn';
 import { SessionList } from './SessionList';
 
 

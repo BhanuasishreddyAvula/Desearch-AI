@@ -1,6 +1,6 @@
 import React from 'react';
 import { Check, Circle } from 'lucide-react';
-import { cn } from '../../../lib/utils/cn';
+import { cn } from '@/lib/utils/cn';
 import type { ProgressStage } from '../progress/types';
 
 interface ResearchProgressStageProps {

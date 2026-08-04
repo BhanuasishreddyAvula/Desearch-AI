@@ -2,12 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Globe, ChevronDown, ChevronUp, Download, Menu } from 'lucide-react';
-import { sessionsApi } from '../../lib/api/sessions';
-import { conversationsApi } from '../../lib/api/conversations';
+import { sessionsApi } from '@/lib/api/sessions';
+import { conversationsApi } from '@/lib/api/conversations';
 import { SourcesDropdown, SourceItem, SourceGroup } from '../../features/reports/components/sources/SourcesDropdown';
 import { ExportMenu } from '../../features/reports/components/export/ExportMenu';
-import { resolveSourcesForResponse } from '../../lib/utils/sources';
-import { cn } from '../../lib/utils/cn';
+import { resolveSourcesForResponse } from '@/lib/utils/sources';
+import { cn } from '@/lib/utils/cn';
 
 
 

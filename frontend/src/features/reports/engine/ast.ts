@@ -37,6 +37,7 @@ export interface CoverPageNode extends BaseNode {
   reportId: string;
   version: string;
   readingTime: string;
+  duration?: string;
   sourcesCount: number;
   researchType: string;
   publisher: string;
@@ -166,6 +167,7 @@ export interface DocumentAST {
     sourcesCount: number;
     wordCount: number;
     readingTime: string;
+    duration?: string;
     engineVersion: string;
   };
   nodes: ASTNode[];

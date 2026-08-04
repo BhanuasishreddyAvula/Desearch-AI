@@ -1,6 +1,6 @@
 import React from 'react';
 import { FileText, Printer, Globe } from 'lucide-react';
-import { cn } from '../../../../lib/utils/cn';
+import { cn } from '@/lib/utils/cn';
 import {
   exportAsPDF,
   exportAsMarkdown,

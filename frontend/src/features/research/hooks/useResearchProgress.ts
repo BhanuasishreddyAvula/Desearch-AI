@@ -1,16 +1,16 @@
 import { useReducer, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ResearchSession } from '../../../types';
-import { streamResearchProgress } from '../../../lib/sse/reader';
-import type { SseStreamControl } from '../../../lib/sse/types';
+import { streamResearchProgress } from '@/lib/sse/reader';
+import type { SseStreamControl } from '@/lib/sse/types';
 import {
   createInitialProgressState,
   progressReducer,
 } from '../progress/reducer';
 import { streamRegistry } from '../utils/streamRegistry';
 import { executionTokenRegistry } from '../utils/executionTokenRegistry';
-import { API_BASE_URL } from '../../../lib/api/client';
-import { getDeviceId } from '../../../lib/device';
+import { API_BASE_URL } from '@/lib/api/client';
+import { getDeviceId } from '@/lib/device';
 
 export interface UseResearchProgressOptions {
   executionToken?: string;

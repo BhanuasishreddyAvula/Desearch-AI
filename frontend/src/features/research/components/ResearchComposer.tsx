@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowUp, Loader2, AlertCircle, Square } from 'lucide-react';
-import { cn } from '../../../lib/utils/cn';
+import { cn } from '@/lib/utils/cn';
 import { useCreateResearchSession } from '../../sessions/hooks/useCreateResearchSession';
 import { executionTokenRegistry } from '../utils/executionTokenRegistry';
 

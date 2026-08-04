@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useResearchSessions } from '../hooks/useResearchSessions';
 import { SessionItem } from './SessionItem';
 import { ChevronDown, RefreshCw } from 'lucide-react';
-import { cn } from '../../../lib/utils/cn';
+import { cn } from '@/lib/utils/cn';
 
 interface SessionListProps {
   isCollapsed?: boolean;

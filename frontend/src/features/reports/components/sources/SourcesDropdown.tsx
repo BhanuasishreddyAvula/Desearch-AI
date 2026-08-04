@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ExternalLink, Globe, ChevronDown, ChevronUp, Layers } from 'lucide-react';
-import { cn } from '../../../../lib/utils/cn';
+import { cn } from '@/lib/utils/cn';
 
 export interface SourceItem {
   domain: string;
