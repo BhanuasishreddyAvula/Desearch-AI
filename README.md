@@ -1,58 +1,65 @@
-# Desearch AI — AI Research & Workbench
+# Desearch AI — Advanced Multi-Agent AI Research Workbench
 
 > **Tagline:** Deep Research. Smarter Decisions.  
-> **Description:** Production-grade AI Research Workbench built using a modular multi-agent orchestration architecture.
+> **Description:** Production-grade, open-source AI Research Workbench powered by a 4-agent orchestration engine with 3-tier multi-provider LLM failover, real-time web grounding, and dynamic prompt-intent RAG synthesis.
 
 ---
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg?style=flat-square)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
-[![Release Version](https://img.shields.io/badge/version-0.1.0-orange.svg?style=flat-square)](CHANGELOG.md)
-[![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square)](https://github.com/psf/black)
+[![Release Version](https://img.shields.io/badge/version-1.0.0-orange.svg?style=flat-square)](CHANGELOG.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg?style=flat-square)](https://www.typescriptlang.org/)
-[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg?style=flat-square)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.12+-blue.svg?style=flat-square)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg?style=flat-square)](https://fastapi.tiangolo.com/)
+[![Vite React](https://img.shields.io/badge/Vite_React-18.0+-61DAFB.svg?style=flat-square)](https://vitejs.dev/)
 
 ---
 
-## Executive Summary & Vision
+## 🌟 Executive Summary & Vision
 
-Organizations and technical professionals face a critical productivity bottleneck when performing complex technical or business research: meaningful research requires scoping, source validation, multi-source synthesis, and structured output. Single-prompt AI chatbots and search engines produce shallow, unverified, or hallucinated responses because they lack multi-step reasoning, external tool grounding, and systematic factual verification.
+Traditional AI chatbots produce shallow, hallucinated responses because they execute a single LLM prompt without real-time web verification or structured multi-step reasoning.
 
-**Desearch AI** solves this gap by providing an open, cloud-native AI Research Workbench. Instead of delegating a complex query to a single LLM call, Desearch AI coordinates a **five-agent pipeline** (Planner, Research, Fact Checker, Writer, Reviewer) operating over a shared research session context with external tool grounding and human-in-the-loop oversight.
-
-### Canonical Research Query Benchmark
-> *"Compare Supabase vs Firebase for Enterprise SaaS"*
+**Desearch AI** solves this by providing a production-grade **AI Research Workbench**. Instead of delegating your query to a single prompt, Desearch AI coordinates a **4-Agent Orchestration Pipeline** (Planner, Research, Writer, Reviewer) operating over a shared research session context with real-time web search grounding, automatic reviewer evaluation loops, and a 3-tier multi-provider failover engine.
 
 ---
 
-## Key Features (Planned MVP)
+## 🔥 Key Features
 
-- **Five-Agent Orchestration Pipeline**:
-  - **Planner Agent**: Scopes research queries and generates structured, subtask-based execution plans.
-  - **Research Agent**: Gathers live source material using external tools (Web Search, Page Reader, Document Reader).
-  - **Fact Checker Agent**: Validates claims against source snippets, detects contradictions, and assigns confidence scores.
-  - **Writer Agent**: Synthesizes validated findings into structured Markdown research reports adhering to a strict schema.
-  - **Reviewer Agent**: Evaluates reports against 7 measurable quality criteria before final delivery.
-- **Tool-Grounded Research**: Real web search, web page reading, and document retrieval to prevent hallucinations.
-- **Isolated Research Session Context**: Short-term, session-scoped context exchange across agents without direct inter-agent coupling.
-- **Human-in-the-Loop (HITL) Checkpoints**: Durable approval checkpoints (`AWAITING_PLAN_APPROVAL` and `AWAITING_FACTCHECK_APPROVAL`) allowing users to review, approve, or retry agent steps.
-- **Report Confidence Model**: Multi-tier confidence scoring (HIGH, MEDIUM, LOW) propagated from individual claims to sections and full reports.
-- **Full Observability & Execution Tracing**: Schema-enforced structured logging and per-session execution trace viewer.
-- **Exportable Reports**: Standalone Markdown export rendered via an isolated Output Formatter component.
+- **🏛️ 4-Agent Orchestration Pipeline**:
+  - **Planner Agent**: Scopes research objectives and generates structured subtask execution plans with entity keyword grounding.
+  - **Research Agent**: Gathers live source material using **Exa AI** (web search) and **Firecrawl** (web page scraping) with automatic URL deduplication.
+  - **Writer Agent**: Synthesizes structured evidence into comprehensive, publication-grade Markdown reports using **Pure Intent RAG Synthesis**.
+  - **Reviewer Agent**: Audits reports for claim-to-evidence alignment, scoring relevance and triggering auto-correction re-search loops if score $< 0.75$.
+
+- **⚡ Master Hybrid 3-Tier Multi-Provider Safety Net**:
+  - **Tier 1 (Primary)**: **Groq Cloud** (`llama-3.3-70b-versatile`, `llama-3.1-8b-instant`) — Ultra-fast 300+ tokens/sec.
+  - **Tier 2 (Secondary)**: **NVIDIA NIM API** (`meta/llama-3.3-70b-instruct`, `meta/llama-3.1-70b-instruct`).
+  - **Tier 3 (Tertiary)**: **OpenRouter API** (`google/gemini-2.0-flash-lite-preview-02-05:free`, `meta-llama/llama-3.3-70b-instruct:free`).
+
+- **🎯 Pure Intent RAG Synthesis (Zero Hardcoded Template)**:
+  - Dynamically formats report structures based 100% on user query intent (Comparison matrices for vs queries, Code solutions for troubleshooting, Step-by-step guides for how-to questions).
+  - Automatically appends a dedicated **`## Bonus Insights & Technical Considerations`** section with expert edge cases, security pitfalls, and performance nuances.
+
+- **🛡️ Supabase Turn Branch Truncation Engine**:
+  - Editing any question in a chat session purges all downstream messages in Supabase by 0-based turn index (`delete_from_index`), preventing duplicate stacked card glitches on browser refresh.
+
+- **📡 Real-Time Progress Streaming (SSE)**:
+  - Streams live execution progress, agent proof metrics, search queries, and scraped domain counts to the frontend via Server-Sent Events (`POST /api/v1/orchestrator/stream`).
+
+- **📄 Deterministic Report Exports**:
+  - Download completed research reports in Markdown (`.md`) or publication-quality PDF (`.pdf`) format generated by ReportLab.
 
 ---
 
-## Architecture Overview
+## 🏗️ System Architecture
 
-Desearch AI separates execution management from cognitive research planning:
-
-```
+```text
 ┌──────────────────────────────────────────────────────────────────────────┐
 │                          Desearch AI Workbench                           │
 │                                                                          │
 │  ┌────────────────────────┐            ┌──────────────────────────────┐  │
-│  │ Research Workbench UI  │◄──────────►│          API Layer           │  │
-│  │  (Next.js / Frontend)  │            │      (FastAPI Backend)       │  │
+│  │ Research Workbench UI  │◄──────────►│        FastAPI API           │  │
+│  │ (Vite + React + TS)    │            │     (Backend Server)         │  │
 │  └────────────────────────┘            └──────────────┬───────────────┘  │
 │                                                       │                  │
 │                                           ┌───────────▼──────────────┐   │
@@ -62,168 +69,96 @@ Desearch AI separates execution management from cognitive research planning:
 │                                               │                   │      │
 │                    ┌──────────────────────────▼───┐    ┌──────────▼───┐  │
 │                    │         Agent Layer          │    │ Research     │  │
-│                    │ Planner · Research · FactChk │    │ Session      │  │
-│                    │     Writer · Reviewer        │    │ Context      │  │
+│                    │ Planner · Research · Writer  │    │ Session      │  │
+│                    │          Reviewer            │    │ Context      │  │
 │                    └──────────────┬───────────────┘    └──────────────┘  │
 │                                   │                                      │
 │                    ┌──────────────▼──────────────┐                       │
 │                    │         Tool Layer          │                       │
-│                    │ WebSearch · PageReader · Doc│                       │
+│                    │   Exa AI  ·   Firecrawl     │                       │
 │                    └─────────────────────────────┘                       │
 │                                                                          │
 │  ┌────────────────────────────────────────────────────────────────────┐  │
-│  │ Persistence Layer & Output Formatter (Markdown / Traces / Audit)   │  │
+│  │ Persistence Layer (Supabase PostgreSQL & PDF/Markdown Export)      │  │
 │  └────────────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Research Session State Machine
-```text
-SUBMITTED ──► PLANNING ──► [AWAITING_PLAN_APPROVAL] ──► RESEARCHING ──► FACT_CHECKING
-                                                                             │
-COMPLETED ◄── REVIEWING ◄── WRITING ◄── [AWAITING_FACTCHECK_APPROVAL] ◄──────┘
-```
+---
 
-For complete architectural details, see [`docs/SYSTEM_ARCHITECTURE.md`](docs/SYSTEM_ARCHITECTURE.md) and [`docs/ENGINEERING_DECISIONS.md`](docs/ENGINEERING_DECISIONS.md).
+## 💻 Technology Stack
+
+| Layer | Technology | Description |
+| :--- | :--- | :--- |
+| **Frontend** | **Vite, React 18, TypeScript, TailwindCSS** | Fast single-page workbench UI with Lucide icons & smooth streaming. |
+| **Backend API** | **Python 3.12, FastAPI, Pydantic v2** | High-performance async REST API with custom request logging & exception handlers. |
+| **Agent Pipeline** | **Multi-Agent Orchestrator (Custom Async Pipeline)** | Dynamic 4-agent sequence with auto-correction retry loops. |
+| **LLM Provider Engine**| **Groq Cloud, NVIDIA NIM, OpenRouter** | 3-tier automatic failover engine with 9,700-token safe budget. |
+| **Search & Web Scraping**| **Exa AI API, Firecrawl Scrape API** | Real-time search & clean Markdown content extraction. |
+| **Database & Persistence**| **Supabase PostgreSQL** | Session history, conversation turns, and metadata storage. |
+| **Document Export** | **ReportLab** | Deterministic PDF export pipeline. |
 
 ---
 
-## Repository Structure
+## 📁 Repository Structure
 
 ```text
 Desearch AI/
-├── .github/              # GitHub Actions CI/CD workflows and issue templates
-├── .vscode/              # Recommended IDE workspace settings and launch configurations
-├── backend/              # Python FastAPI microservices & Agent orchestration core
-├── frontend/             # Next.js / React interactive Research Workbench UI
-├── docs/                 # Architectural specifications, EDRs, and implementation tickets
-│   ├── PROJECT_VISION.md
-│   ├── REQUIREMENTS.md
-│   ├── SYSTEM_ARCHITECTURE.md
-│   ├── ENGINEERING_DECISIONS.md
-│   ├── IMPLEMENTATION_PLAN.md
-│   ├── RESUME_SOURCE.md
-│   └── CHANGELOG_CONSISTENCY_PASS.md
-├── infrastructure/       # Cloud infrastructure-as-code and configuration scripts
-├── scripts/              # Local development setup, diagnostic, and utility scripts
-├── .editorconfig         # Code formatting standards across IDEs
-├── .env.example          # Template for environment variables and service credentials
-├── .gitattributes        # Git line ending normalization rules
-├── .gitignore            # Master git ignore patterns (Python, Node, IDEs, OS, Secrets)
-├── CHANGELOG.md          # Project version history (Keep a Changelog standard)
-├── CODE_OF_CONDUCT.md    # Contributor Covenant v2.1
-├── CONTRIBUTING.md       # Development workflow, branch strategy & commit rules
-├── LICENSE               # MIT Open Source License
-├── README.md             # Project overview & engineering documentation
-└── SECURITY.md           # Security disclosure policy and vulnerability guidelines
+├── backend/              # FastAPI microservices & Agent orchestration core
+│   ├── app/
+│   │   ├── agents/       # Planner, Research, Writer, Reviewer Agents
+│   │   ├── conversations/# Conversation messages & Supabase repository
+│   │   ├── core/         # Settings, database, 3-tier LLM client
+│   │   ├── export/       # Markdown and PDF export formatters
+│   │   ├── orchestrator/ # Multi-Agent orchestrator & SSE streaming router
+│   │   ├── sessions/     # Research session CRUD service
+│   │   └── tools/        # Exa Search & Firecrawl Content tools
+│   ├── requirements.txt  # Production Python dependencies
+│   └── README.md         # Backend engineering documentation
+├── frontend/             # Vite + React + TypeScript Frontend
+│   ├── src/
+│   │   ├── components/   # UI components, floating headers, layout
+│   │   ├── features/     # Research session, timeline, export, history
+│   │   └── lib/          # SSE streamer, API client, utils
+│   ├── package.json
+│   └── vite.config.ts
+├── docs/                 # Architectural specifications & design documents
+└── README.md             # Project overview & architecture documentation
 ```
 
 ---
 
-## Technology Stack (Planned)
+## ⚡ Quick Start & Setup
 
-| Layer | Technology | Rationale |
-| ----- | ---------- | --------- |
-| **Frontend** | Next.js 14, React 18, TypeScript, Tailwind CSS | Fast rendering, strict typing, responsive research workbench interface. |
-| **Backend API** | Python 3.11+, FastAPI, Pydantic v2 | High performance, async support, native data validation. |
-| **Agent Core** | LangChain / Custom Agent Framework | Stateless, role-bounded agent dispatch loop. |
-| **Database & Auth** | Supabase (PostgreSQL), Row Level Security | Managed PostgreSQL, authentication, and durable audit storage. |
-| **Memory / Cache** | In-Memory / Redis Context Store | Session-scoped context storage with fast read/write access. |
-| **LLM Provider API**| Google Gemini / OpenAI / Anthropic API | Provider-agnostic inference layer abstraction. |
-| **Observability** | Structured JSON Logging, OpenTelemetry | Schema-enforced logs and per-session execution tracing. |
+### 1. Prerequisites
+- **Node.js** 18+ & **npm**
+- **Python** 3.12+
+- API Keys: **Groq Cloud**, **Exa AI**, **Firecrawl**, **Supabase**
 
----
-
-## Development Roadmap
-
-- [x] **Milestone 1 — Core Architecture & Standards (`TICKET: P1-01`)**: Repository foundation, standards, specifications, git conventions.
-- [ ] **Milestone 2 — FastAPI Backend Setup & Foundation**: Base application, middleware, API router setup.
-- [ ] **Milestone 3 — Functional Research Orchestration & LLM Layer**: Orchestrator core and 5 agent stubs connected to LLM provider.
-- [ ] **Milestone 4 — Research Agents with Tools & Session Memory**: Tool integration (Web Search, Page Reader, Doc Reader) and session context manager.
-- [ ] **Milestone 5 — Human-in-the-Loop (HITL) Checkpoint Layer**: Approval checkpoint engine and persistence.
-- [ ] **Milestone 6 — Observability, Tracing & Logging**: Structured logging and trace export endpoints.
-- [ ] **Milestone 7 — Research Workbench Frontend**: Next.js interface for query submission, pipeline tracking, and report viewing.
-- [ ] **Milestone 8 — Cloud Deployment & Free-Tier Verification**: Cloud deployment and 30-minute clean setup verification.
-- [ ] **Milestone 9 — Production Verification & Acceptance**: End-to-end testing with canonical queries.
-
----
-
-## Getting Started (Placeholder)
-
-*Note: Application code implementation begins in Milestone 2. Follow the steps below for repository setup.*
-
-### Prerequisites
-- **Git** 2.40+
-- **Python** 3.11+
-- **Node.js** 18.x or 20.x LTS
-- **npm** 9.x+
-
-### Repository Setup
+### 2. Backend Setup
 ```bash
-# Clone the repository
-git clone https://github.com/BhanuasishreddyAvula/Desearch-AI.git
-cd Desearch-AI
+cd backend
+python -m venv venv
+# Windows: venv\Scripts\activate | Linux/macOS: source venv/bin/activate
+pip install -r requirements.txt
 
-# Inspect environment variables template
-cp .env.example .env
+# Start Backend Server
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
----
+### 3. Frontend Setup
+```bash
+cd frontend
+npm install
 
-## Repository Conventions
-
-- **Branch Naming**: `feature/<name>`, `bugfix/<name>`, `hotfix/<name>`, `release/<version>`
-- **Commit Messages**: Conventional Commits specification (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `build:`, `ci:`)
-- **Versioning**: Semantic Versioning 2.0.0 (`MAJOR.MINOR.PATCH`)
-
-For complete contribution standards, please refer to [`CONTRIBUTING.md`](CONTRIBUTING.md).
-
----
-
-## Product Non-Goals
-
-To maintain scope discipline, Desearch AI explicitly is **NOT**:
-1. A general-purpose AI assistant or chatbot.
-2. A search engine replacement.
-3. A real-time web monitoring or alerting service.
-4. A persistent knowledge graph or database of facts.
-5. A plagiarism checker or legal/financial advisory service.
-
-For full details, see [`docs/PROJECT_VISION.md`](docs/PROJECT_VISION.md).
-
----
-
-## Screenshots Placeholder
-
-```text
-+--------------------------------------------------------------------------+
-|  [Desearch AI Workbench UI Screenshot Placeholder]                       |
-|  Query: "Compare Supabase vs Firebase for Enterprise SaaS"               |
-|  Active Step: FACT_CHECKING (Fact Checker Agent validating 5 sources)    |
-+--------------------------------------------------------------------------+
+# Start Frontend Dev Server
+npm run dev
 ```
 
----
-
-## Deployment Placeholder
-
-```text
-+--------------------------------------------------------------------------+
-|  [Cloud Infrastructure Deployment Topology Placeholder]                  |
-|  Frontend: Cloud Static Hosting (HTTPS)                                  |
-|  Backend API & Orchestrator: Managed Container Service / Serverless      |
-|  Persistence: Supabase PostgreSQL Managed Instance                       |
-+--------------------------------------------------------------------------+
-```
+Open `http://localhost:5173` in your browser to start using Desearch AI!
 
 ---
 
-## Contributing
+## 📄 License
 
-We welcome community contributions! Please read our [`CONTRIBUTING.md`](CONTRIBUTING.md) guide and [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) before submitting pull requests.
-
----
-
-## License
-
-This project is licensed under the **MIT License** — see the [`LICENSE`](LICENSE) file for details.
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
