@@ -60,7 +60,7 @@ class ReviewerAgent:
         llm_response = self.llm_client.generate_chat_completion(
             system_prompt=REVIEWER_AGENT_SYSTEM_PROMPT,
             user_prompt=prompt,
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             response_format_json=True,
         )
         logger.info("LLM Finished | Latency: %.2fms", llm_response.latency_ms)
