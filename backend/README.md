@@ -51,15 +51,6 @@ The backend provides Server-Sent Events (SSE) progress streaming via `POST /api/
 - **Endpoint**: `POST /api/v1/orchestrator/stream`
 - **Media Type**: `text/event-stream`
 - **Shared Business Logic**: Both `POST /orchestrator/run` and `POST /orchestrator/stream` execute identical underlying business logic via `MultiAgentOrchestrator`.
-- **Event Vocabulary & Progress Percentages**:
-  - `workflow.started` (0%)
-  - `planner.started` (5%) -> `planner.completed` (15%)
-  - `research.started` (20%) -> `research.searching` (25%) -> `research.extracting` (40%) -> `research.completed` (60%)
-  - `writer.started` (65%) -> `writer.completed` (80%)
-  - `reviewer.started` (85%) -> `reviewer.completed` (95%)
-  - `report.persisted` (98%)
-  - `workflow.completed` (100%)
-  - `workflow.failed` (100% on exception)
 
 ---
 
@@ -71,105 +62,35 @@ The **Report Export Service** (`ReportExportService`) formats completed research
 - **Formatters**:
   - `MarkdownExportFormatter`: Formats canonical report text into UTF-8 encoded `.md` documents.
   - `PdfExportFormatter`: Formats report title, executive summary, headings, paragraphs, and citations into professional binary `.pdf` documents using ReportLab.
-- **Persistence**: Persists canonical `ReportResult` data in Supabase `research_sessions` metadata column upon workflow completion.
 
 ---
 
 ## Real Search & Content Tool Architecture
 
 ### 1. Search Tool Module (`app/tools/search/`)
-
 The **Search Tool** (`SearchTool`) executes web search queries via the `ExaProvider` HTTP REST integration (`POST https://api.exa.ai/search`).
 
-- **Provider**: `ExaProvider` (`app/tools/search/provider.py`)
-- **Key Settings**: `EXA_API_KEY`, `EXA_BASE_URL`, `SEARCH_TIMEOUT`
-- **Output Model**: `SearchResult` containing normalized `SearchResultItem` items (`title`, `url`, `snippet`, `published_at`, `score`, `metadata`).
-
 ### 2. Content Tool Module (`app/tools/content/`)
-
 The **Content Tool** (`ContentTool`) extracts clean web page content and Markdown via the `FirecrawlProvider` HTTP REST integration (`POST https://api.firecrawl.dev/v1/scrape`).
 
-- **Provider**: `FirecrawlProvider` (`app/tools/content/provider.py`)
-- **Key Settings**: `FIRECRAWL_API_KEY`, `FIRECRAWL_BASE_URL`, `CONTENT_TIMEOUT`
-- **Output Model**: `ExtractedDocument` containing `url`, `title`, `markdown`, `plain_text`, and `metadata`.
-
 ---
 
-## Reviewer Agent Module
-
-The **Reviewer Agent** (`app/agents/reviewer/`) evaluates generated reports against the original `PlannerResult` strategy and `ResearchResult` evidence collection.
-
----
-
-## Writer Agent Module
-
-The **Writer Agent** (`app/agents/writer/`) receives a `PlannerResult` plan and a structured `ResearchResult` evidence collection, then synthesizes a comprehensive Markdown Research Report.
-
----
-
-## Multi-Agent Orchestrator Module
-
-The **Multi-Agent Orchestrator** (`app/orchestrator/`) sequences agent workflows across four steps (`PlannerAgent` -> `ResearchAgent` -> `WriterAgent` -> `ReviewerAgent`), tracking execution metrics and aggregating `PlannerResult`, `ResearchResult`, `ReportResult`, and `ReviewResult` into a unified `WorkflowResult` response.
-
----
-
-## Research Agent Module
-
-The **Research Agent** (`app/agents/research/`) receives a `PlannerResult` plan from the Planner Agent, requests necessary tools strictly through `ToolRegistry`, gathers raw research findings, and structures them into a formal `ResearchResult` evidence collection.
-
----
-
-## Universal Tool Registry Module
-
-The **Tool Registry** (`app/tools/`) is the central catalog of every capability available to AI agents. It acts as a metadata directory that tracks tool identities, specifications, input/output JSON schemas, versioning, enabling status, and supported agent roles.
-
----
-
-## Universal LLM Platform (OpenRouter Integration)
-
-Desearch AI integrates **OpenRouter** (`app/core/llm/`) as its decoupled, universal LLM platform provider using direct HTTP REST calls (`httpx`).
-
----
-
-## Development Quality Workflow
-
-### Quality Commands (`backend/Makefile`)
-
-```bash
-# Format code with Black and isort
-make format
-
-# Run Ruff linter checks
-make lint
-
-# Run mypy strict static type checking
-make typecheck
-
-# Run complete quality suite (format, lint, typecheck)
-make quality
-```
-
----
-
-## Setup & Local Development
+## Setup & Deployment
 
 ### 1. Create Virtual Environment
-
 ```cmd
 cd backend
 python -m venv venv
 venv\Scripts\activate
 ```
 
-### 2. Install Dependencies
-
+### 2. Install Production Dependencies
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 3. Run Development Server
-
+### 3. Run Server
 ```bash
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
