@@ -52,7 +52,8 @@ class ExaProvider:
         payload: dict[str, Any] = {
             "query": query,
             "numResults": max_results,
-            "useAutoprompt": True,
+            "useAutoprompt": False,
+            "type": "auto",
             "contents": {"text": True},
         }
 

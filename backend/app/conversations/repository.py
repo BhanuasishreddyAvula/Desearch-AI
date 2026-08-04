@@ -29,3 +29,13 @@ class AbstractConversationRepository(ABC):
     def delete_by_session(self, session_id: str) -> None:
         """Delete all messages belonging to a session (cascade on session delete)."""
         ...
+
+    @abstractmethod
+    def delete_after_message(self, session_id: str, message_id: str) -> None:
+        """Delete all downstream messages from a session starting at target message_id."""
+        ...
+
+    @abstractmethod
+    def delete_from_index(self, session_id: str, turn_index: int) -> None:
+        """Delete all downstream conversation messages starting at 0-based turn index."""
+        ...

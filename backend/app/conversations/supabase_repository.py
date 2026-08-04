@@ -113,6 +113,45 @@ class SupabaseConversationRepository(AbstractConversationRepository):
         except Exception as exc:
             logger.exception("delete_by_session failed: %s", str(exc))
 
+    def delete_after_message(self, session_id: str, message_id: str) -> None:
+        """Delete target message and all downstream messages for a session starting at message_id."""
+        try:
+            # Fetch target message created_at timestamp to purge target & downstream turns
+            resp = _execute_with_retry(
+                lambda: self.client.table(TABLE).select("created_at").eq("id", message_id).execute()
+            )
+            if resp.data and len(resp.data) > 0:
+                target_created_at = resp.data[0]["created_at"]
+                _execute_with_retry(
+                    lambda: self.client.table(TABLE).delete().eq("session_id", session_id).gte("created_at", target_created_at).execute()
+                )
+                logger.info("Purged downstream conversation messages from session %s starting at timestamp %s", session_id, target_created_at)
+            else:
+                _execute_with_retry(
+                    lambda: self.client.table(TABLE).delete().eq("id", message_id).execute()
+                )
+        except Exception as exc:
+            logger.exception("delete_after_message failed: %s", str(exc))
+
+    def delete_from_index(self, session_id: str, turn_index: int) -> None:
+        """Delete downstream conversation messages starting from 0-based turn index onwards."""
+        try:
+            messages = self.list_by_session(session_id)
+            skip_count = turn_index * 2
+            if len(messages) > skip_count:
+                to_delete_ids = [msg.id for msg in messages[skip_count:]]
+                _execute_with_retry(
+                    lambda: self.client.table(TABLE).delete().in_("id", to_delete_ids).execute()
+                )
+                logger.info(
+                    "Purged %d downstream conversation messages from session %s starting at turn_index %d",
+                    len(to_delete_ids),
+                    session_id,
+                    turn_index,
+                )
+        except Exception as exc:
+            logger.exception("delete_from_index failed: %s", str(exc))
+
     # ─── Conversion Helpers ──────────────────────────────────────────────────
 
     @staticmethod

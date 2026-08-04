@@ -5,16 +5,26 @@ import { cn } from '../../../lib/utils/cn';
 import { SessionList } from './SessionList';
 
 
-export const ResearchSidebar: React.FC = () => {
+interface ResearchSidebarProps {
+  onSelectSession?: () => void;
+}
+
+export const ResearchSidebar: React.FC<ResearchSidebarProps> = ({ onSelectSession }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const navigate = useNavigate();
 
   const handleNewResearch = () => {
+    onSelectSession?.();
     navigate('/');
   };
 
+
   const toggleCollapse = () => {
-    setIsCollapsed((prev) => !prev);
+    if (onSelectSession) {
+      onSelectSession();
+    } else {
+      setIsCollapsed((prev) => !prev);
+    }
   };
 
   return (
@@ -33,12 +43,13 @@ export const ResearchSidebar: React.FC = () => {
         {/* Brand Container */}
         <div
           className={cn(
-            'flex items-center whitespace-nowrap overflow-hidden transition-all duration-200 ease-out',
+            'flex items-center whitespace-nowrap overflow-hidden transition-all duration-200 ease-out pl-2.5',
             isCollapsed ? 'max-w-0 opacity-0 pointer-events-none' : 'max-w-[180px] opacity-100'
           )}
         >
-          <span className="font-serif-editorial font-bold text-xl text-white tracking-tight truncate">
-            Desearch AI
+          <span className="font-serif-editorial font-bold text-xl tracking-tight truncate">
+            <span className="text-white">Desearch </span>
+            <span className="text-accent font-extrabold">AI</span>
           </span>
         </div>
 
@@ -65,7 +76,7 @@ export const ResearchSidebar: React.FC = () => {
           onClick={handleNewResearch}
           aria-label="New Research"
           title="New Research"
-          className="w-full flex items-center h-9 px-1.5 rounded-lg text-white hover:bg-surface-hover active:bg-surface-elevated active:scale-[0.98] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring text-sm font-medium overflow-hidden"
+          className="w-full flex items-center h-9 px-2.5 rounded-lg text-white hover:bg-surface-hover active:bg-surface-elevated active:scale-[0.98] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring text-sm font-medium overflow-hidden"
         >
           {/* Icon Slot: Fixed X-coordinate anchor centered in 52px rail */}
           <div className="w-5 h-5 flex items-center justify-center shrink-0 text-white">
@@ -91,6 +102,7 @@ export const ResearchSidebar: React.FC = () => {
           'flex-1 overflow-y-auto px-3 py-2 transition-opacity duration-200',
           isCollapsed ? 'opacity-0 pointer-events-none hidden' : 'opacity-100'
         )}
+        onClick={onSelectSession}
       >
         <SessionList isCollapsed={isCollapsed} />
       </nav>

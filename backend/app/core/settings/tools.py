@@ -42,6 +42,6 @@ class ToolsSettings(BaseSettings):
         description="Maximum character budget per extracted research source",
     )
     RESEARCH_MAX_TOTAL_CHARS: int = Field(
-        default=40000,
-        description="Maximum global character budget for total research context synthesis",
+        default=26000,
+        description="Maximum global character budget for total research context synthesis (~6,500 prompt tokens)",
     )

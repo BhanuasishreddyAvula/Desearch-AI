@@ -8,6 +8,7 @@ from app.conversations.models import ConversationMessage
 from app.conversations.repository import AbstractConversationRepository
 from app.core.exceptions import ResourceNotFoundException
 from app.core.repositories.session import AbstractSessionRepository
+from app.observability.logger import get_app_logger
 from app.orchestrator import cancel_registry
 from app.orchestrator.events import (
     ProgressEvent,
@@ -17,6 +18,8 @@ from app.orchestrator.events import (
 from app.orchestrator.models import WorkflowResult
 from app.orchestrator.orchestrator import MultiAgentOrchestrator, WorkflowCancelledError
 from app.sessions.enums import SessionStatus
+
+logger = get_app_logger("orchestrator.service")
 
 
 class OrchestratorService:
@@ -42,6 +45,8 @@ class OrchestratorService:
         query: str,
         progress_listener: Callable[[ProgressEvent], None] | None = None,
         device_id: str = "",
+        target_message_id: str | None = None,
+        turn_index: int | None = None,
     ) -> WorkflowResult:
         """Validate session, build conversation context, run workflow, persist messages."""
         session = self.session_repository.get_by_id(session_id)
@@ -49,6 +54,16 @@ class OrchestratorService:
             raise ResourceNotFoundException(
                 message=f"Research session '{session_id}' was not found."
             )
+
+        # ─── Turn Branch Truncation: Purge downstream turns if editing target turn ───
+        if turn_index is not None and self.conversation_repository:
+            logger.info("Purging downstream messages for session %s starting at turn_index: %d", session_id, turn_index)
+            self.conversation_repository.delete_from_index(session_id, turn_index)
+            session.query = query
+        elif target_message_id and self.conversation_repository:
+            logger.info("Purging downstream messages for session %s starting at target_message_id: %s", session_id, target_message_id)
+            self.conversation_repository.delete_after_message(session_id, target_message_id)
+            session.query = query
         # Enforce device ownership — allow access if session belongs to device or is legacy nil UUID
         nil_uuid = "00000000-0000-0000-0000-000000000000"
         if (

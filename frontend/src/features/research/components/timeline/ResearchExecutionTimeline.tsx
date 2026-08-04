@@ -90,6 +90,25 @@ export const ResearchExecutionTimeline: React.FC<ResearchExecutionTimelineProps>
     }));
   };
 
+  // Format raw technical exceptions into user-friendly messages
+  const formatUserFriendlyError = (rawError?: string): string => {
+    if (!rawError) return 'Free tier AI limit reached. Please try asking again!';
+    const lower = rawError.toLowerCase();
+    if (lower.includes('json') || lower.includes('parse') || lower.includes('invalid') || lower.includes('empty')) {
+      return 'Free tier AI limit reached or provider returned incomplete output. Please try asking again!';
+    }
+    if (lower.includes('rate') || lower.includes('429') || lower.includes('quota') || lower.includes('limit')) {
+      return 'AI free tier rate limit exceeded. Please wait a few seconds and try again!';
+    }
+    if (lower.includes('timeout') || lower.includes('network') || lower.includes('504')) {
+      return 'Network connection timed out while researching. Please try again!';
+    }
+    if (lower.includes('workflow execution failed:')) {
+      return rawError.replace(/^workflow execution failed:\s*/i, '').trim();
+    }
+    return rawError;
+  };
+
   // Terminal Failure Alert
   if (isFailed) {
     return (
@@ -97,7 +116,7 @@ export const ResearchExecutionTimeline: React.FC<ResearchExecutionTimelineProps>
         <div className="flex items-center gap-2 font-medium">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>Research failed</span>
-          {error && <span className="text-destructive/80 font-normal">({error})</span>}
+          {error && <span className="text-destructive/80 font-normal">({formatUserFriendlyError(error)})</span>}
         </div>
         {onRetry && (
           <button

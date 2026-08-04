@@ -124,6 +124,30 @@ class Settings(BaseSettings):
         return self.llm.OPENROUTER_BASE_URL
 
     @property
+    def GROQ_API_KEY(self) -> str | None:
+        return self.llm.GROQ_API_KEY
+
+    @property
+    def GROQ_BASE_URL(self) -> str:
+        return self.llm.GROQ_BASE_URL
+
+    @property
+    def GROQ_DEFAULT_MODEL(self) -> str:
+        return self.llm.GROQ_DEFAULT_MODEL
+
+    @property
+    def NVIDIA_API_KEY(self) -> str | None:
+        return self.llm.NVIDIA_API_KEY
+
+    @property
+    def NVIDIA_BASE_URL(self) -> str:
+        return self.llm.NVIDIA_BASE_URL
+
+    @property
+    def NVIDIA_DEFAULT_MODEL(self) -> str:
+        return self.llm.NVIDIA_DEFAULT_MODEL
+
+    @property
     def TEMPERATURE(self) -> float:
         return self.llm.TEMPERATURE
 

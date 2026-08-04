@@ -30,10 +30,11 @@ class PlannerAgent:
 
         prompt = build_planner_user_prompt(query, conversation_context=conversation_context)
 
-        # Execute normalized chat completion request via LLMClient
+        # Execute normalized chat completion request via LLMClient (Specialized ultra-fast 0.2s planning model)
         response = self.llm_client.generate_chat_completion(
             system_prompt=PLANNER_SYSTEM_PROMPT,
             user_prompt=prompt,
+            model="llama-3.1-8b-instant",
             response_format_json=True,
         )
 
@@ -60,6 +61,13 @@ class PlannerAgent:
 
             data = json.loads(cleaned_json)
 
+            # Dynamic Entity Keyword Extraction to prevent search query drift
+            import re
+            stop_words = {"what", "is", "the", "difference", "between", "and", "or", "how", "to", "about", "them", "which", "for", "with", "a", "an", "in", "of", "on"}
+            query_words = re.findall(r'\b[a-zA-Z0-9.\-+#]+\b', query.lower())
+            core_entities = [w for w in query_words if w not in stop_words and len(w) > 1][:4]
+            entity_str = " ".join(core_entities)
+
             raw_tasks = data.get("tasks", [])
             tasks = []
             for idx, t in enumerate(raw_tasks):
@@ -68,17 +76,22 @@ class PlannerAgent:
                         TaskModel(
                             id=f"task_{idx+1}",
                             title=f"Task {idx+1}",
-                            description=t,
+                            description=f"{t} ({entity_str})".strip() if entity_str else t,
                             priority="medium",
                             reason="Planned step",
                         )
                     )
                 elif isinstance(t, dict):
+                    desc = str(t.get("description", ""))
+                    # Ground description with entity keywords if missing
+                    if entity_str and not any(ent in desc.lower() for ent in core_entities):
+                        desc = f"{desc} ({entity_str})".strip()
+
                     tasks.append(
                         TaskModel(
                             id=str(t.get("id", f"task_{idx+1}")),
                             title=str(t.get("title", f"Task {idx+1}")),
-                            description=str(t.get("description", "")),
+                            description=desc,
                             priority=str(t.get("priority", "medium")),
                             reason=str(t.get("reason", "")),
                         )

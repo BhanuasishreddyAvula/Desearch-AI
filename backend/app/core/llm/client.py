@@ -21,9 +21,19 @@ from app.observability.logger import get_app_logger
 
 logger = get_app_logger("core.llm")
 
-# Universal fallback models list for free-tier resilience
+# Universal fallback models list for multi-provider resilience
+FALLBACK_GROQ_MODELS = [
+    "llama-3.3-70b-versatile",
+]
+
+FALLBACK_NVIDIA_MODELS = [
+    "meta/llama-3.3-70b-instruct",
+    "meta/llama-3.1-70b-instruct",
+    "meta/llama-3.1-8b-instruct",
+    "meta/llama-3.2-3b-instruct",
+]
+
 FALLBACK_FREE_MODELS = [
-    "openrouter/auto",
     "google/gemini-2.0-flash-lite-preview-02-05:free",
     "meta-llama/llama-3.3-70b-instruct:free",
     "qwen/qwen-2.5-coder-32b-instruct:free",
@@ -33,16 +43,30 @@ FALLBACK_FREE_MODELS = [
 
 
 class LLMClient:
-    """Client for executing LLM completion requests against OpenRouter REST API with automatic rate-limit and network fallback."""
+    """Client for executing LLM completion requests against Groq Cloud, NVIDIA NIM, and OpenRouter APIs with 3-Tier automatic multi-provider failover."""
 
     def __init__(self) -> None:
-        self.provider = "openrouter"
+        self.provider = "groq"
+
+    def get_groq_api_key(self) -> str | None:
+        """Retrieve effective Groq Cloud API key from configuration."""
+        key = settings.GROQ_API_KEY
+        if key and key != "gsk_your-groq-api-key" and key.strip():
+            return key.strip()
+        return None
 
     def get_api_key(self) -> str | None:
         """Retrieve effective OpenRouter API key from configuration."""
         key = settings.OPENROUTER_API_KEY
-        if key and key != "your_openrouter_api_key_placeholder":
-            return key
+        if key and key != "your_openrouter_api_key_placeholder" and key.strip():
+            return key.strip()
+        return None
+
+    def get_nvidia_api_key(self) -> str | None:
+        """Retrieve effective NVIDIA NIM API key from configuration."""
+        key = settings.NVIDIA_API_KEY
+        if key and key != "your_nvidia_api_key_placeholder" and key.strip():
+            return key.strip()
         return None
 
     def generate_chat_completion(
@@ -54,8 +78,8 @@ class LLMClient:
         max_tokens: int | None = None,
         response_format_json: bool = True,
     ) -> LLMResponse:
-        """Send chat completion request to OpenRouter REST API with automatic rate-limit and network fallback."""
-        primary_model = model or settings.LLM_MODEL
+        """Send chat completion request using 3-Tier Multi-Provider Failover: Groq (Tier 1) -> NVIDIA NIM (Tier 2) -> OpenRouter (Tier 3)."""
+        primary_model = model or settings.GROQ_DEFAULT_MODEL or settings.LLM_MODEL
         request = LLMRequest(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
@@ -65,39 +89,184 @@ class LLMClient:
             response_format_json=response_format_json,
         )
 
-        try:
-            return self.execute_request(request)
-        except (RateLimitException, ExternalServiceException) as exc:
-            # Universal Fallback Mechanism: try alternative free models when 429 or network error occurs
-            logger.warning(
-                "Primary model '%s' failed (%s). Attempting automatic fallback models...",
-                primary_model,
-                str(exc),
-            )
+        # ----------------------------------------------------------------------
+        # TIER 1: Groq Cloud API (Ultra-Fast Primary Provider — 300+ tokens/sec)
+        # ----------------------------------------------------------------------
+        groq_key = self.get_groq_api_key()
+        if groq_key:
+            groq_models_to_try = [primary_model] if primary_model in FALLBACK_GROQ_MODELS else []
+            for g_model in FALLBACK_GROQ_MODELS:
+                if g_model not in groq_models_to_try:
+                    groq_models_to_try.append(g_model)
 
-            for fallback_model in FALLBACK_FREE_MODELS:
-                if fallback_model == primary_model:
-                    continue
+            for g_model in groq_models_to_try:
                 try:
-                    logger.info("Attempting LLM fallback with model: %s", fallback_model)
-                    fallback_req = LLMRequest(
+                    logger.info("Attempting Tier-1 Groq Cloud API call with model: %s", g_model)
+                    g_req = LLMRequest(
                         system_prompt=system_prompt,
                         user_prompt=user_prompt,
-                        model=fallback_model,
+                        model=g_model,
                         temperature=request.temperature,
                         max_tokens=request.max_tokens,
                         response_format_json=request.response_format_json,
                     )
-                    res = self.execute_request(fallback_req)
-                    logger.info("Fallback model '%s' succeeded!", fallback_model)
+                    res = self.execute_groq_request(g_req, model_override=g_model)
+                    logger.info("Tier-1 Groq Cloud model '%s' succeeded!", g_model)
                     return res
-                except Exception as fb_exc:
-                    logger.debug("Fallback model '%s' failed: %s", fallback_model, str(fb_exc))
+                except Exception as g_exc:
+                    logger.warning("Tier-1 Groq Cloud model '%s' failed: %s", g_model, str(g_exc))
                     continue
 
-            # If all free models fail or internet connection drops, synthesize structured local response
-            logger.error("All OpenRouter models failed. Generating structured local response fallback.")
-            return self._build_synthetic_fallback(request)
+        # ----------------------------------------------------------------------
+        # TIER 2: NVIDIA NIM API (High-Availability Secondary Provider — H100 GPUs)
+        # ----------------------------------------------------------------------
+        nvidia_key = self.get_nvidia_api_key()
+        if nvidia_key:
+            logger.warning("Groq unavailable or exhausted. Executing failover to Tier-2 NVIDIA NIM API...")
+            for nv_model in FALLBACK_NVIDIA_MODELS:
+                try:
+                    logger.info("Attempting Tier-2 NVIDIA NIM API call with model: %s", nv_model)
+                    nv_req = LLMRequest(
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        model=nv_model,
+                        temperature=request.temperature,
+                        max_tokens=request.max_tokens,
+                        response_format_json=request.response_format_json,
+                    )
+                    res = self.execute_nvidia_request(nv_req, model_override=nv_model)
+                    logger.info("Tier-2 NVIDIA NIM model '%s' succeeded!", nv_model)
+                    return res
+                except Exception as nv_exc:
+                    logger.warning("Tier-2 NVIDIA NIM model '%s' failed: %s", nv_model, str(nv_exc))
+                    continue
+
+        # ----------------------------------------------------------------------
+        # TIER 3: OpenRouter API (Tertiary Fallback Gateway)
+        # ----------------------------------------------------------------------
+        openrouter_key = self.get_api_key()
+        if openrouter_key:
+            logger.warning("Groq & NVIDIA exhausted. Executing failover to Tier-3 OpenRouter API...")
+            openrouter_models = [settings.LLM_MODEL] + [m for m in FALLBACK_FREE_MODELS if m != settings.LLM_MODEL]
+            for or_model in openrouter_models:
+                try:
+                    logger.info("Attempting Tier-3 OpenRouter call with model: %s", or_model)
+                    or_req = LLMRequest(
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        model=or_model,
+                        temperature=request.temperature,
+                        max_tokens=request.max_tokens,
+                        response_format_json=request.response_format_json,
+                    )
+                    res = self.execute_request(or_req)
+                    logger.info("Tier-3 OpenRouter model '%s' succeeded!", or_model)
+                    return res
+                except Exception as or_exc:
+                    logger.warning("Tier-3 OpenRouter model '%s' failed: %s", or_model, str(or_exc))
+                    continue
+
+        # ----------------------------------------------------------------------
+        # TIER 4: Local Synthetic Fallback (Emergency Safety Net)
+        # ----------------------------------------------------------------------
+        logger.error("All Tier 1-3 LLM providers (Groq, NVIDIA, OpenRouter) exhausted. Synthesizing local report.")
+        return self._build_synthetic_fallback(request)
+
+    def execute_groq_request(self, req: LLMRequest, model_override: str | None = None) -> LLMResponse:
+        """Execute HTTP completion request against Groq Cloud API endpoint with auto-retry."""
+        api_key = self.get_groq_api_key()
+        if not api_key:
+            raise ConfigurationException(
+                message="GROQ_API_KEY is missing from server environment configuration",
+                details={"provider": "groq", "model": req.model},
+            )
+
+        active_model = model_override or req.model or settings.GROQ_DEFAULT_MODEL
+        url = f"{settings.GROQ_BASE_URL.rstrip('/')}/chat/completions"
+        timeout_seconds = settings.TIMEOUT_SECONDS or 60.0
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+
+        payload: dict[str, Any] = {
+            "model": active_model,
+            "messages": [
+                {"role": "system", "content": req.system_prompt},
+                {"role": "user", "content": req.user_prompt},
+            ],
+            "temperature": req.temperature,
+            "max_tokens": req.max_tokens,
+        }
+
+        if req.response_format_json:
+            payload["response_format"] = {"type": "json_object"}
+
+        start_time = time.perf_counter()
+        logger.event(
+            SystemEvents.AGENT_STARTED,
+            f"Groq LLM Request Started | Provider: groq | Model: {active_model}",
+        )
+
+        with httpx.Client(timeout=timeout_seconds) as http_client:
+            response = http_client.post(url, json=payload, headers=headers)
+            latency_ms = (time.perf_counter() - start_time) * 1000.0
+
+            if response.status_code != 200:
+                self._handle_http_error(response, active_model, latency_ms)
+
+            res_data = response.json()
+            return self._parse_success_response(res_data, active_model, latency_ms)
+
+    def execute_nvidia_request(self, req: LLMRequest, model_override: str | None = None) -> LLMResponse:
+        """Execute HTTP completion request against NVIDIA NIM API endpoint with auto-retry."""
+        api_key = self.get_nvidia_api_key()
+        if not api_key:
+            raise ConfigurationException(
+                message="NVIDIA_API_KEY is missing from server environment configuration",
+                details={"provider": "nvidia", "model": req.model},
+            )
+
+        active_model = model_override or req.model or settings.NVIDIA_DEFAULT_MODEL
+        url = f"{settings.NVIDIA_BASE_URL.rstrip('/')}/chat/completions"
+        timeout_seconds = settings.TIMEOUT_SECONDS or 60.0
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+
+        payload: dict[str, Any] = {
+            "model": active_model,
+            "messages": [
+                {"role": "system", "content": req.system_prompt},
+                {"role": "user", "content": req.user_prompt},
+            ],
+            "temperature": req.temperature,
+            "max_tokens": req.max_tokens,
+        }
+
+        if req.response_format_json:
+            payload["response_format"] = {"type": "json_object"}
+
+        start_time = time.perf_counter()
+        logger.event(
+            SystemEvents.AGENT_STARTED,
+            f"NVIDIA LLM Request Started | Provider: nvidia | Model: {active_model}",
+        )
+
+        with httpx.Client(timeout=timeout_seconds) as http_client:
+            response = http_client.post(url, json=payload, headers=headers)
+            latency_ms = (time.perf_counter() - start_time) * 1000.0
+
+            if response.status_code != 200:
+                self._handle_http_error(response, active_model, latency_ms)
+
+            res_data = response.json()
+            return self._parse_success_response(res_data, active_model, latency_ms)
 
     def execute_request(self, req: LLMRequest) -> LLMResponse:
         """Execute HTTP completion request against OpenRouter API endpoint with auto-retry."""

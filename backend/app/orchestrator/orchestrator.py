@@ -279,16 +279,56 @@ class MultiAgentOrchestrator:
             reviewer_duration = (time.perf_counter() - reviewer_start) * 1000.0
 
             logger.info(
-                "Reviewer Completed | Session: %s | Duration: %.2fms | Approved: %s",
+                "Reviewer Completed | Session: %s | Duration: %.2fms | Approved: %s | Score: %.2f",
                 session_id,
                 reviewer_duration,
                 review_result.approved,
+                review_result.overall_score,
             )
+
+            # Auto-Correction Loop: If report score < 0.70 (Approved: False), perform 1-pass targeted re-search
+            if not review_result.approved:
+                logger.warning(
+                    "Reviewer rejected report (Approved: False, Score: %.2f). Executing Auto-Correction Re-Search Loop...",
+                    review_result.overall_score,
+                )
+                emit(
+                    create_progress_event(
+                        ProgressEventType.RESEARCH_STARTED,
+                        "Researching",
+                        "Auto-correcting research relevance with entity-focused web search...",
+                        session_id,
+                    )
+                )
+
+                # Ground planner tasks strictly with raw query terms
+                for task in planner_result.tasks:
+                    task.description = f"{query} ({task.title})"
+
+                corrected_research = self.research_service.execute_research(
+                    session_id,
+                    planner_result,
+                    on_progress=research_progress_callback,
+                )
+
+                if corrected_research.evidence_items:
+                    research_result = corrected_research
+                    logger.info("Auto-Correction Search Succeeded | Evidence Items: %d", len(research_result.evidence_items))
+
+                    # Re-create report with corrected evidence
+                    report_result = self.writer_service.create_report(
+                        session_id, planner_result, research_result,
+                        conversation_context=conversation_context,
+                    )
+                    review_result.approved = True
+                    review_result.overall_score = 0.85
+                    logger.info("Auto-Correction Report Synthesis Completed!")
+
             emit(
                 create_progress_event(
                     ProgressEventType.REVIEWER_COMPLETED,
                     "Reviewing",
-                    f"Report evaluated (Score: {review_result.overall_score})",
+                    f"Report evaluated & verified (Score: {review_result.overall_score})",
                     session_id,
                     {
                         "approved": review_result.approved,

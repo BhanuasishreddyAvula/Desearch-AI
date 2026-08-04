@@ -329,22 +329,32 @@ export const SessionView: React.FC = () => {
     if (!sessionId || isFollowupStreaming) return;
 
     let pairId = targetPairId;
+    let targetTurnIndex: number | undefined = undefined;
 
     if (pairId) {
-      // Re-execute / Edit existing turn in place
-      setFollowupMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === pairId
-            ? {
-                ...msg,
-                userQuery: queryText,
-                assistantContent: '',
-                status: 'streaming' as const,
-                progressState: createInitialProgressState(pairId!, 'streaming'),
-              }
-            : msg
-        )
-      );
+      targetTurnIndex = followupMessages.findIndex((msg) => msg.id === pairId);
+      if (targetTurnIndex < 0) targetTurnIndex = 0;
+
+      // Re-execute / Edit existing turn in place (Truncate downstream turns like ChatGPT/Claude)
+      setFollowupMessages((prev) => {
+        const targetIndex = prev.findIndex((msg) => msg.id === pairId);
+        if (targetIndex >= 0) {
+          const truncated = prev.slice(0, targetIndex + 1);
+          return truncated.map((msg, idx) =>
+            idx === targetIndex
+              ? {
+                  ...msg,
+                  userQuery: queryText,
+                  assistantContent: '',
+                  status: 'streaming' as const,
+                  progressState: createInitialProgressState(pairId!, 'streaming'),
+                  sources: [],
+                }
+              : msg
+          );
+        }
+        return prev;
+      });
     } else {
       // Append new turn for fresh follow-up query
       pairId = `pair-${Date.now()}`;
@@ -360,6 +370,7 @@ export const SessionView: React.FC = () => {
     }
 
     setIsFollowupStreaming(true);
+    window.dispatchEvent(new CustomEvent('session-sources-clear'));
 
     // 2. Smoothly scroll to target message
     setTimeout(() => {
@@ -380,6 +391,8 @@ export const SessionView: React.FC = () => {
       body: {
         session_id: sessionId,
         query: queryText,
+        target_message_id: targetPairId,
+        turn_index: targetTurnIndex,
       },
       onEvent: (event) => {
         const payload = (event as any).metadata || (event as any).data;
@@ -522,7 +535,7 @@ export const SessionView: React.FC = () => {
                 {/* Initial Q1 User Query + Live Execution Progress (For brand-new active streaming) */}
                 <UserMessageBubble
                   content={promptText}
-                  onEdit={(qText) => handleFollowupSubmit(qText)}
+                  onEdit={(qText) => handleFollowupSubmit(qText, followupMessages[0]?.id)}
                 />
                 <ResearchProgress
                   progressState={progressState}

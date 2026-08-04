@@ -55,7 +55,9 @@ class WriterAgent:
         llm_response = self.llm_client.generate_chat_completion(
             system_prompt=WRITER_AGENT_SYSTEM_PROMPT,
             user_prompt=prompt,
+            model="llama-3.3-70b-versatile",
             response_format_json=True,
+            max_tokens=3500,
         )
         logger.info("LLM Finished | Latency: %.2fms", llm_response.latency_ms)
 
@@ -158,7 +160,7 @@ class WriterAgent:
                 metadata=metadata,
             )
 
-        except (json.JSONDecodeError, ValueError) as exc:
+        except Exception as exc:
             logger.warning(
                 "Writer Agent JSON parse failed (%s). Attempting raw markdown fallback...",
                 str(exc),

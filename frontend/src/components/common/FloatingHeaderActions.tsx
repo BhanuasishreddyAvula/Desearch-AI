@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Compass, ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { Globe, ChevronDown, ChevronUp, Download, Menu } from 'lucide-react';
 import { sessionsApi } from '../../lib/api/sessions';
 import { conversationsApi } from '../../lib/api/conversations';
 import { SourcesDropdown, SourceItem, SourceGroup } from '../../features/reports/components/sources/SourcesDropdown';
@@ -205,7 +205,8 @@ export const FloatingHeaderActions: React.FC = () => {
           const msgMd = msg.metadata?.full_markdown || msg.content || '';
           const groupSources = resolveSourcesForResponse(
             Array.isArray(rawSecs) ? rawSecs : [],
-            msgMd
+            msgMd,
+            msg.metadata?.timeline_sources || msg.metadata?.timelineSources || accumulatedSources
           );
 
           groups.push({
@@ -226,7 +227,8 @@ export const FloatingHeaderActions: React.FC = () => {
 
         const primarySources = resolveSourcesForResponse(
           Array.isArray(primaryRawSources) ? primaryRawSources : [],
-          primaryFullMd
+          primaryFullMd,
+          accumulatedSources
         );
 
         if (primarySources.length > 0 || primaryFullMd) {
@@ -297,23 +299,24 @@ export const FloatingHeaderActions: React.FC = () => {
   const exportMarkdown = getExportMarkdown();
 
   return (
-    <div className="pointer-events-none absolute top-4 left-0 right-0 px-4 md:px-8 flex items-center justify-between z-30 select-none">
-      {/* Left Brand Indicator (Mobile Viewports Only) */}
-      <div className="flex items-center gap-2 md:hidden pointer-events-auto bg-surface/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-border-subtle/80 shadow-md">
-        <div className="w-5 h-5 rounded-md bg-accent flex items-center justify-center text-accent-foreground">
-          <Compass className="w-3.5 h-3.5" />
-        </div>
-        <span className="font-serif-editorial font-bold text-base text-white tracking-tight">
-          Desearch AI
-        </span>
-      </div>
+    <div className="pointer-events-none fixed md:absolute top-0 left-0 right-0 h-16 pt-3 px-4 md:px-8 md:top-4 flex items-start justify-between z-30 select-none bg-gradient-to-b from-background via-background/40 to-transparent border-none shadow-none md:bg-none">
+      {/* 1. Top-Left Mobile 3-Line Sidebar Trigger Button (Normal Button) */}
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new CustomEvent('toggle-mobile-sidebar'))}
+        aria-label="Toggle navigation sidebar"
+        title="Open navigation menu"
+        className="flex items-center justify-center w-9 h-9 rounded-full bg-surface hover:bg-surface-hover border border-border-subtle text-white shadow-sm cursor-pointer pointer-events-auto md:hidden"
+      >
+        <Menu className="w-5 h-5 text-white" />
+      </button>
 
       <div className="hidden md:block" />
 
-      {/* Top Right Floating Action Bar */}
+      {/* 2. Top-Right Floating Action Bar */}
       {isSessionActive && (
         <div className="pointer-events-auto flex items-center gap-2">
-          {/* Download Icon Button */}
+          {/* Download / Export Button */}
           <div ref={exportContainerRef} className="relative">
             <button
               type="button"
@@ -325,13 +328,13 @@ export const FloatingHeaderActions: React.FC = () => {
               aria-label="Export report menu"
               title={isExportOpen ? 'Collapse Export Menu' : 'Download & Export Report'}
               className={cn(
-                'flex items-center justify-center w-9 h-9 rounded-xl backdrop-blur-md text-xs font-medium transition-all duration-200 focus:outline-none focus:ring-0 shadow-md cursor-pointer select-none animate-in fade-in duration-150',
+                'flex items-center justify-center w-9 h-9 rounded-full transition-all duration-200 focus:outline-none cursor-pointer select-none animate-in fade-in duration-150',
                 isExportOpen
                   ? 'bg-surface-hover border border-white/30 text-white'
-                  : 'bg-surface/90 border border-border-subtle/80 hover:border-white/40 text-foreground/90 hover:text-white'
+                  : 'bg-surface hover:bg-surface-hover border border-border-subtle text-white shadow-sm'
               )}
             >
-              <Download className="w-4 h-4 text-foreground/90 group-hover:text-white" />
+              <Download className="w-4 h-4 text-white" />
             </button>
 
             {/* Export Action Menu Popover */}
@@ -348,6 +351,7 @@ export const FloatingHeaderActions: React.FC = () => {
 
           {/* Sources Dropdown Button */}
           <div ref={sourcesContainerRef} className="relative">
+            {/* Desktop View Button (Full Text) */}
             <button
               type="button"
               onClick={() => {
@@ -359,10 +363,10 @@ export const FloatingHeaderActions: React.FC = () => {
               aria-label="Sources dropdown"
               title={isSourcesOpen ? 'Collapse Sources' : 'Expand Sources'}
               className={cn(
-                'flex items-center gap-2 px-3.5 py-2 rounded-xl backdrop-blur-md text-xs font-medium transition-all duration-200 focus:outline-none focus:ring-0 shadow-md cursor-pointer select-none animate-in fade-in duration-150',
+                'hidden md:flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-all duration-200 focus:outline-none focus:ring-0 shadow-md cursor-pointer select-none animate-in fade-in duration-150',
                 isSourcesOpen
                   ? 'bg-surface-hover border border-white/30 text-white'
-                  : 'bg-surface/90 border border-border-subtle/80 hover:border-white/40 text-foreground/90 hover:text-white'
+                  : 'bg-surface hover:bg-surface-hover border border-border-subtle text-foreground/90 hover:text-white'
               )}
             >
               <span>Sources ({totalSourcesCount})</span>
@@ -370,6 +374,33 @@ export const FloatingHeaderActions: React.FC = () => {
                 <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
               ) : (
                 <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+              )}
+            </button>
+
+            {/* Mobile View Button (Normal Solid Button) */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsSourcesOpen((prev) => !prev);
+                setIsExportOpen(false);
+                setTargetResponseIndex(undefined);
+              }}
+              aria-expanded={isSourcesOpen}
+              aria-label="Sources dropdown"
+              title={isSourcesOpen ? 'Collapse Sources' : 'Expand Sources'}
+              className={cn(
+                'flex md:hidden items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 focus:outline-none cursor-pointer select-none animate-in fade-in duration-150',
+                isSourcesOpen
+                  ? 'bg-surface-hover border border-white/30 text-white'
+                  : 'bg-surface hover:bg-surface-hover border border-border-subtle text-white shadow-sm'
+              )}
+            >
+              <Globe className="w-4 h-4 text-white shrink-0" />
+              <span className="text-[11px] font-bold text-white leading-none">({totalSourcesCount})</span>
+              {isSourcesOpen ? (
+                <ChevronUp className="w-3 h-3 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="w-3 h-3 text-muted-foreground" />
               )}
             </button>
 

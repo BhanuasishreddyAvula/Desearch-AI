@@ -27,9 +27,33 @@ class LLMSettings(BaseSettings):
         default=None,
         description="OpenRouter API Key for authenticating LLM requests",
     )
+    GROQ_API_KEY: str | None = Field(
+        default=None,
+        description="Groq Cloud API Key for authenticating primary ultra-fast LLM requests",
+    )
+    GROQ_BASE_URL: str = Field(
+        default="https://api.groq.com/openai/v1",
+        description="Base URL for Groq Cloud REST API",
+    )
+    GROQ_DEFAULT_MODEL: str = Field(
+        default="llama-3.3-70b-versatile",
+        description="Default high-speed LLM model identifier on Groq Cloud platform",
+    )
     OPENROUTER_BASE_URL: str = Field(
         default="https://openrouter.ai/api/v1",
         description="Base URL for OpenRouter REST API",
+    )
+    NVIDIA_API_KEY: str | None = Field(
+        default=None,
+        description="NVIDIA NIM API Key for authenticating secondary LLM requests",
+    )
+    NVIDIA_BASE_URL: str = Field(
+        default="https://integrate.api.nvidia.com/v1",
+        description="Base URL for NVIDIA NIM REST API",
+    )
+    NVIDIA_DEFAULT_MODEL: str = Field(
+        default="meta/llama-3.3-70b-instruct",
+        description="Default high-performance LLM model identifier on NVIDIA NIM platform",
     )
     TEMPERATURE: float = Field(
         default=0.2,

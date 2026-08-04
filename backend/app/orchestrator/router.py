@@ -259,6 +259,8 @@ async def stream_workflow(
                 data.query,
                 listener_guard,
                 x_device_id,
+                data.target_message_id,
+                data.turn_index,
             )
         except Exception as exc:
             if not listener_guard.terminal_emitted:

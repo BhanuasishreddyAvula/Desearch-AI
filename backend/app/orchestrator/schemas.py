@@ -15,6 +15,8 @@ class WorkflowRunRequest(BaseModel):
 
     session_id: str = Field(..., description="UUID identifier of ResearchSession")
     query: str = Field(..., description="Primary research objective query")
+    target_message_id: str | None = Field(default=None, description="Optional target message ID for in-place edit & downstream purging")
+    turn_index: int | None = Field(default=None, description="Optional 0-based turn index to edit & purge downstream messages in Supabase")
 
 
 class WorkflowCancelRequest(BaseModel):
