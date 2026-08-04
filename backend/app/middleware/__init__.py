@@ -16,14 +16,18 @@ def register_middleware(app: FastAPI) -> None:
     Request Ingress Order:
       CORSMiddleware -> RequestContextMiddleware -> RequestTimingMiddleware -> RequestLoggingMiddleware -> SecurityHeadersMiddleware
     """
+    raw_origins = settings.CORS_ORIGINS or ["*"]
+    origins = [o.rstrip("/") for o in raw_origins]
+    allow_credentials = "*" not in origins
+
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestLoggingMiddleware)
     app.add_middleware(RequestTimingMiddleware)
     app.add_middleware(RequestContextMiddleware)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
-        allow_credentials=True,
+        allow_origins=origins,
+        allow_credentials=allow_credentials,
         allow_methods=["*"],
         allow_headers=["*"],
     )
