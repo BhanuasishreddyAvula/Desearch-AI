@@ -3,7 +3,7 @@ import { UserMessageBubble } from './UserMessageBubble';
 import { ResearchExecutionTimeline } from './timeline/ResearchExecutionTimeline';
 import { MarkdownRenderer } from '../../reports/components/markdown/MarkdownRenderer';
 import { ReportActionBar } from '../../reports/components/ReportActionBar';
-import { resolveSourcesForResponse } from '@/lib/utils/sources';
+import { resolveSourcesForResponse, extractCleanMarkdown } from '@/lib/utils/sources';
 import type { ProgressState } from '../progress/types';
 
 import type { ReportSource } from '../../../types';
