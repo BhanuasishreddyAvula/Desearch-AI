@@ -2,7 +2,7 @@ import React from 'react';
 import type { ProgressState } from '../progress/types';
 import { ResearchExecutionTimeline } from './timeline/ResearchExecutionTimeline';
 import { ResearchReport } from '../../reports';
-import { extractSearchQueriesFromState } from '@/lib/utils/sources';
+import { resolveSourcesForResponse } from '@/lib/utils/sources';
 
 interface ResearchProgressProps {
   progressState: ProgressState;

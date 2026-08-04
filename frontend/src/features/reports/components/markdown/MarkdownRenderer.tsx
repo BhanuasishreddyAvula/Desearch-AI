@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { parseMarkdownToAST } from '../../utils/markdownParser';
-import { cleanRawMarkdownForRendering } from '@/lib/utils/sources';
+import { extractCleanMarkdown } from '@/lib/utils/sources';
 import { HeadingBlock } from './HeadingBlock';
 import { ParagraphBlock } from './ParagraphBlock';
 import { ListBlock } from './ListBlock';
