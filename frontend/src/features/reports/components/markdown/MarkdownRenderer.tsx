@@ -31,7 +31,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) =
   }
 
   return (
-    <div className="w-full space-y-4 font-sans-ui text-left text-foreground select-text">
+    <div className="w-full space-y-4 font-sans-ui text-left text-foreground select-text animate-claude-fade">
       {nodes.map((node, index) => {
         switch (node.type) {
           case 'heading':

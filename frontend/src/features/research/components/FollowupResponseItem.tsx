@@ -89,7 +89,7 @@ export const FollowupResponseItem: React.FC<FollowupResponseItemProps> = ({
 
           {/* Follow-up Streamed / Completed Markdown Response */}
           {!isFailed && message.assistantContent && (
-            <div className="pt-2 text-foreground/90 space-y-4 transition-all duration-300 ease-out animate-in fade-in-50 slide-in-from-bottom-2">
+            <div className="pt-2 text-foreground/90 space-y-4 animate-claude-fade">
               <MarkdownRenderer content={extractCleanMarkdown(message.assistantContent)} />
 
               {/* End-of-Response Action Bar (Sources & Export) */}

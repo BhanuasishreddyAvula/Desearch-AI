@@ -15,7 +15,7 @@ export const ParagraphBlock: React.FC<ParagraphBlockProps> = ({ node }) => {
       {sentences.map((sentence, idx) => (
         <span
           key={idx}
-          className="inline animate-paragraph-in"
+          className="inline animate-claude-fade"
         >
           <InlineRenderer text={sentence} />
           {idx < sentences.length - 1 ? ' ' : ''}

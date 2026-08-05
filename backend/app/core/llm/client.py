@@ -24,12 +24,13 @@ logger = get_app_logger("core.llm")
 # Universal fallback models list for multi-provider resilience
 FALLBACK_GROQ_MODELS = [
     "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
 ]
 
 FALLBACK_NVIDIA_MODELS = [
+    "meta/llama-3.1-8b-instruct",
     "meta/llama-3.3-70b-instruct",
     "meta/llama-3.1-70b-instruct",
-    "meta/llama-3.1-8b-instruct",
     "meta/llama-3.2-3b-instruct",
 ]
 
@@ -183,7 +184,7 @@ class LLMClient:
 
         active_model = model_override or req.model or settings.GROQ_DEFAULT_MODEL
         url = f"{settings.GROQ_BASE_URL.rstrip('/')}/chat/completions"
-        timeout_seconds = settings.TIMEOUT_SECONDS or 60.0
+        timeout_seconds = 10.0
 
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -231,7 +232,7 @@ class LLMClient:
 
         active_model = model_override or req.model or settings.NVIDIA_DEFAULT_MODEL
         url = f"{settings.NVIDIA_BASE_URL.rstrip('/')}/chat/completions"
-        timeout_seconds = settings.TIMEOUT_SECONDS or 60.0
+        timeout_seconds = 12.0
 
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -280,7 +281,7 @@ class LLMClient:
 
         active_model = req.model or settings.LLM_MODEL
         url = f"{settings.OPENROUTER_BASE_URL.rstrip('/')}/chat/completions"
-        timeout_seconds = settings.TIMEOUT_SECONDS or 60.0
+        timeout_seconds = 12.0
 
         headers = {
             "Authorization": f"Bearer {api_key}",

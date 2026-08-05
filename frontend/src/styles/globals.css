@@ -97,6 +97,24 @@
     animation: popoverIn 180ms cubic-bezier(0, 0, 0.2, 1) forwards;
   }
 
+  /* Claude-Style Smooth Text Streaming & Fade-In Motion */
+  @keyframes claudeStreamFade {
+    0% {
+      opacity: 0;
+      transform: translateY(6px);
+      filter: blur(1.5px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0);
+    }
+  }
+
+  .animate-claude-fade {
+    animation: claudeStreamFade 320ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
   /* Streaming Paragraph Motion */
   @keyframes paragraphIn {
     from {
