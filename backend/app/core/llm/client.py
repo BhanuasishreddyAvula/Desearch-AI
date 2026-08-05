@@ -175,7 +175,7 @@ class LLMClient:
         return self._build_synthetic_fallback(request)
 
     def execute_groq_request(self, req: LLMRequest, model_override: str | None = None) -> LLMResponse:
-        """Execute HTTP completion request against Groq Cloud API endpoint with auto-retry."""
+        """Execute HTTP completion request against Groq Cloud API endpoint with smart 429 rate limit cooldown retry."""
         api_key = self.get_groq_api_key()
         if not api_key:
             raise ConfigurationException(
@@ -185,7 +185,7 @@ class LLMClient:
 
         active_model = model_override or req.model or settings.GROQ_DEFAULT_MODEL
         url = f"{settings.GROQ_BASE_URL.rstrip('/')}/chat/completions"
-        timeout_seconds = 10.0
+        timeout_seconds = 15.0
 
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -216,6 +216,28 @@ class LLMClient:
             response = http_client.post(url, json=payload, headers=headers)
             latency_ms = (time.perf_counter() - start_time) * 1000.0
 
+            # ─── Smart 429 Rolling Window Cooldown Retry ──────────────────────
+            # Groq 429 responses specify exact wait time (e.g., "Please try again in 1.67s").
+            # Pause execution for (wait_time + 0.2s) and retry once before failing over.
+            if response.status_code == 429:
+                err_body = response.text
+                import re
+                match = re.search(r"try again in ([0-9.]+)\s*(s|ms)?", err_body, re.IGNORECASE)
+                if match:
+                    val = float(match.group(1))
+                    unit = (match.group(2) or "s").lower()
+                    wait_sec = (val / 1000.0 if unit == "ms" else val) + 0.25
+                    logger.warning(
+                        "Groq 429 Rolling Window Limit | Model: %s | Auto-cooldown pause: %.2fs before retry...",
+                        active_model,
+                        wait_sec,
+                    )
+                    time.sleep(wait_sec)
+                    # Retry Groq request ONCE after cooldown
+                    retry_start = time.perf_counter()
+                    response = http_client.post(url, json=payload, headers=headers)
+                    latency_ms = (time.perf_counter() - retry_start) * 1000.0
+
             if response.status_code != 200:
                 self._handle_http_error(response, active_model, latency_ms)
 
@@ -223,7 +245,7 @@ class LLMClient:
             return self._parse_success_response(res_data, active_model, latency_ms)
 
     def execute_nvidia_request(self, req: LLMRequest, model_override: str | None = None) -> LLMResponse:
-        """Execute HTTP completion request against NVIDIA NIM API endpoint with auto-retry."""
+        """Execute HTTP completion request against NVIDIA NIM API endpoint with high-availability 35s queue ceiling."""
         api_key = self.get_nvidia_api_key()
         if not api_key:
             raise ConfigurationException(
@@ -233,7 +255,7 @@ class LLMClient:
 
         active_model = model_override or req.model or settings.NVIDIA_DEFAULT_MODEL
         url = f"{settings.NVIDIA_BASE_URL.rstrip('/')}/chat/completions"
-        timeout_seconds = 12.0
+        timeout_seconds = 35.0
 
         headers = {
             "Authorization": f"Bearer {api_key}",
