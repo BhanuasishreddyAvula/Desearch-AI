@@ -516,8 +516,8 @@ export const SessionView: React.FC = () => {
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-4 md:px-6 pt-16 md:pt-20 pb-4 scroll-smooth"
       >
-        <div className="max-w-[760px] mx-auto min-h-[calc(100vh-100px)] flex flex-col justify-between">
-          <div className="space-y-6 md:space-y-8 pb-10">
+        <div className="max-w-[760px] mx-auto w-full pb-6">
+          <div className="space-y-6 md:space-y-8">
             {/* Unified Conversation Timeline (Renders all Q&A turns in 1-based chronological order) */}
             {followupMessages.length > 0 ? (
               followupMessages.map((msgPair, idx) => (
@@ -545,24 +545,20 @@ export const SessionView: React.FC = () => {
                   reportSources={reportSources}
                   onRetry={() => handleFollowupSubmit(promptText)}
                 />
-
               </>
             )}
-
-
-
-
           </div>
+        </div>
+      </div>
 
-          {/* 4. Pure Floating Sticky Composer for Follow-up Queries */}
-          <div className="sticky bottom-2 z-20 pointer-events-none pt-2">
-            <ResearchComposer
-              onFollowup={handleFollowupSubmit}
-              isFollowupSubmitting={isAnyStreaming}
-              onStop={handleUnifiedStop}
-            />
-          </div>
-
+      {/* 4. Decoupled Pinned Floating Composer Container for Mobile Viewport Stability */}
+      <div className="w-full shrink-0 z-30 px-4 sm:px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 bg-gradient-to-t from-background via-background/90 to-transparent">
+        <div className="max-w-[760px] mx-auto">
+          <ResearchComposer
+            onFollowup={handleFollowupSubmit}
+            isFollowupSubmitting={isAnyStreaming}
+            onStop={handleUnifiedStop}
+          />
         </div>
       </div>
     </div>

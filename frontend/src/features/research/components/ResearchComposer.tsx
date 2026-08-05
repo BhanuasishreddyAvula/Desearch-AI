@@ -148,7 +148,7 @@ export const ResearchComposer: React.FC<ResearchComposerProps> = ({
       {/* 106px Height Composer with Top Text Area & Bottom-Right Circular Send Button */}
       <div
         className={cn(
-          'relative w-full rounded-2xl p-4 md:p-4.5 flex flex-col justify-between min-h-[106px]',
+          'relative w-full rounded-2xl p-3.5 md:p-4.5 flex flex-col justify-between min-h-[90px] md:min-h-[106px]',
           'bg-surface/95 backdrop-blur-md border border-border-subtle/80',
           'hover:border-white/30 focus-within:border-white/60 transition-all duration-200',
           'shadow-[0_12px_40px_rgba(0,0,0,0.6)]'

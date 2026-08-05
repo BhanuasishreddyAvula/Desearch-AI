@@ -4,9 +4,9 @@ import { ResearchComposer } from './ResearchComposer';
 
 export const NewResearchView: React.FC = () => {
   return (
-    <div className="relative flex flex-col justify-between items-center h-full w-full min-h-[100dvh] sm:min-h-0 overflow-hidden font-sans-ui select-none">
+    <div className="relative flex flex-col justify-between items-center h-full w-full overflow-hidden font-sans-ui select-none">
       {/* 1. Hero Welcome Section (Centered in Top/Middle Viewport, Claude Style) */}
-      <div className="flex-1 flex flex-col items-center justify-center text-center w-full px-4 sm:px-6 py-6 md:py-12 my-auto select-none">
+      <div className="flex-1 flex flex-col items-center justify-center text-center w-full px-4 sm:px-6 py-4 md:py-12 my-auto select-none overflow-y-auto">
         <div className="w-full max-w-[760px] mx-auto flex flex-col items-center justify-center space-y-3.5 sm:space-y-5 md:space-y-6 my-auto">
           
           {/* Welcome Badge */}
@@ -34,7 +34,7 @@ export const NewResearchView: React.FC = () => {
       </div>
 
       {/* 2. Bottom Anchored Research Composer (Claude Mobile Style: Snug on Keyboard) */}
-      <div className="w-full max-w-[760px] mx-auto px-4 sm:px-6 pb-4 sm:pb-8 md:pb-12 pt-2 shrink-0">
+      <div className="w-full max-w-[760px] mx-auto px-4 sm:px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 shrink-0 z-20">
         <ResearchComposer />
       </div>
     </div>

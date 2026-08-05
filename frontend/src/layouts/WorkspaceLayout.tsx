@@ -26,7 +26,7 @@ export const WorkspaceLayout: React.FC = () => {
   }, [location.pathname]);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground relative font-sans-ui">
+    <div className="flex h-[100dvh] w-full max-h-[100dvh] overflow-hidden bg-background text-foreground relative font-sans-ui">
       {/* Desktop Research Sidebar */}
       <div className="hidden md:flex h-full shrink-0 z-20">
         <ResearchSidebar />
