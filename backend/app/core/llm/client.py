@@ -22,16 +22,17 @@ from app.observability.logger import get_app_logger
 logger = get_app_logger("core.llm")
 
 # Universal fallback models list for multi-provider resilience
+# Writer/Reviewer fallback chains — 70B models ONLY.
+# 8B models are excluded because Writer/Reviewer payloads reach 6,000-12,000 tokens,
+# which exceeds the 8B model's 6,000 TPM cap on Groq free tier.
+# Planner/Reviewer-lightweight agents hardcode llama-3.1-8b-instant directly.
 FALLBACK_GROQ_MODELS = [
     "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
 ]
 
 FALLBACK_NVIDIA_MODELS = [
-    "meta/llama-3.1-8b-instruct",
     "meta/llama-3.3-70b-instruct",
     "meta/llama-3.1-70b-instruct",
-    "meta/llama-3.2-3b-instruct",
 ]
 
 FALLBACK_FREE_MODELS = [

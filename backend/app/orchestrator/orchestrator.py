@@ -23,6 +23,65 @@ from app.orchestrator.workflow import WorkflowStatus, WorkflowStep
 
 logger = get_app_logger("orchestrator")
 
+# ─── Token Budget Guard Constants ─────────────────────────────────────────────
+# Groq 70B TPM limit = 12,000. We target 11,000 to leave 1,000-token safety
+# headroom for system prompts, JSON wrappers, and completion output tokens.
+TOKEN_BUDGET_LIMIT = 11_000
+CHARS_PER_TOKEN = 4  # Conservative: 1 token ≈ 4 characters for English text
+
+
+def trim_evidence_to_token_budget(
+    evidence_items: list,
+    budget_tokens: int = TOKEN_BUDGET_LIMIT,
+) -> list:
+    """Estimate total token count of evidence payloads and trim longest summaries
+    until the combined payload fits within the TPM budget.
+
+    Strategy: Sort evidence items by summary length descending, then progressively
+    truncate the longest summaries by 30% per pass until total_chars / 4 < budget.
+    This preserves ALL evidence items (no items dropped) while shrinking verbose ones.
+    """
+    def estimate_tokens(items: list) -> int:
+        total_chars = sum(
+            len(ev.summary) + len(ev.title) + len(ev.source) for ev in items
+        )
+        return total_chars // CHARS_PER_TOKEN
+
+    estimated = estimate_tokens(evidence_items)
+    if estimated <= budget_tokens:
+        logger.info(
+            "Token Budget OK | Estimated: %d tokens | Budget: %d tokens | No trimming needed",
+            estimated, budget_tokens,
+        )
+        return evidence_items
+
+    logger.warning(
+        "Token Budget EXCEEDED | Estimated: %d tokens | Budget: %d tokens | Trimming evidence...",
+        estimated, budget_tokens,
+    )
+
+    # Sort by summary length descending — trim the longest first
+    sorted_items = sorted(evidence_items, key=lambda ev: len(ev.summary), reverse=True)
+
+    max_passes = 5
+    for pass_num in range(max_passes):
+        for ev in sorted_items:
+            if estimate_tokens(sorted_items) <= budget_tokens:
+                break
+            # Trim summary to 70% of current length (progressive 30% reduction)
+            current_len = len(ev.summary)
+            if current_len > 200:
+                target_len = int(current_len * 0.70)
+                ev.summary = ev.summary[:target_len].rsplit(" ", 1)[0] + "..."
+        if estimate_tokens(sorted_items) <= budget_tokens:
+            break
+
+    final_tokens = estimate_tokens(sorted_items)
+    logger.info(
+        "Token Budget Trimmed | Final: %d tokens | Budget: %d tokens | Passes: %d",
+        final_tokens, budget_tokens, pass_num + 1,
+    )
+    return sorted_items
 
 class WorkflowCancelledError(Exception):
     """Raised when the user requests cancellation of the running agent workflow."""
@@ -205,6 +264,15 @@ class MultiAgentOrchestrator:
             check_cancelled()
 
             # ------------------------------------------------------------------
+            # Step 2.5: Dynamic Token Budget Guard (Pre-Writer/Reviewer)
+            # Estimate evidence payload tokens and trim to ≤11,000 to prevent
+            # 429 TPM rate limit errors on Groq 70B (12,000 TPM cap).
+            # ------------------------------------------------------------------
+            research_result.evidence_items = trim_evidence_to_token_budget(
+                research_result.evidence_items
+            )
+
+            # ------------------------------------------------------------------
             # Step 3: Execute Writer Agent
             # ------------------------------------------------------------------
             logger.info("Writer Started | Session: %s", session_id)
@@ -314,6 +382,11 @@ class MultiAgentOrchestrator:
                 if corrected_research.evidence_items:
                     research_result = corrected_research
                     logger.info("Auto-Correction Search Succeeded | Evidence Items: %d", len(research_result.evidence_items))
+
+                    # Apply token budget guard to corrected evidence
+                    research_result.evidence_items = trim_evidence_to_token_budget(
+                        research_result.evidence_items
+                    )
 
                     # Re-create report with corrected evidence
                     report_result = self.writer_service.create_report(
